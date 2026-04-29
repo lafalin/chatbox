@@ -978,6 +978,37 @@ input, textarea { font-family: inherit; }
   line-height: 1.5;
 }
 .gate-error[hidden] { display: none; }
+.label-hint {
+  color: var(--ink-3);
+  font-weight: 400;
+  font-size: 11.5px;
+  margin-left: 4px;
+}
+.gate-status,
+.settings-status {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.45;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gate-status.is-error,
+.settings-status.is-error { color: #B91C1C; }
+.gate-status.is-loading,
+.settings-status.is-loading { color: var(--ink-3); }
+.gate-status[hidden],
+.settings-status[hidden] { display: none; }
+.spinner {
+  width: 11px; height: 11px;
+  border: 1.5px solid var(--line-strong);
+  border-top-color: var(--ink-3);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* settings */
 .modal-tab-row {
@@ -1223,17 +1254,20 @@ input, textarea { font-family: inherit; }
           <option value="custom">Custom (OpenAI-compatible)</option>
         </select>
       </div>
-      <div class="gate-row" id="gateModelRow">
-        <label for="gateModel">Model</label>
-        <input id="gateModel" type="text" placeholder="claude-sonnet-4-6" autocomplete="off" spellcheck="false">
-      </div>
-      <div class="gate-row" id="gateBaseUrlRow" hidden>
-        <label for="gateBaseUrl">Base URL</label>
-        <input id="gateBaseUrl" type="text" placeholder="http://localhost:11434" autocomplete="off" spellcheck="false">
-      </div>
       <div class="gate-row" id="gateKeyRow">
         <label for="apiKey">API key</label>
         <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="gate-row" id="gateBaseUrlRow" hidden>
+        <label for="gateBaseUrl">Base URL <span class="label-hint">(for local / self-hosted models)</span></label>
+        <input id="gateBaseUrl" type="text" placeholder="http://localhost:11434" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="gate-row" id="gateModelRow">
+        <label for="gateModel">Model</label>
+        <select id="gateModel" disabled>
+          <option value="">Enter your API key first</option>
+        </select>
+        <div class="gate-status" id="gateModelStatus" hidden></div>
       </div>
       <div class="gate-row">
         <label class="gate-check">
@@ -1340,18 +1374,21 @@ input, textarea { font-family: inherit; }
           <option value="custom">Custom (OpenAI-compatible)</option>
         </select>
       </div>
-      <div class="settings-row">
-        <label for="setModel">Model</label>
-        <input id="setModel" type="text" placeholder="claude-sonnet-4-6" autocomplete="off" spellcheck="false">
-        <div class="settings-help" id="setModelHelp"></div>
-      </div>
-      <div class="settings-row" id="setBaseUrlRow" hidden>
-        <label for="setBaseUrl">Base URL</label>
-        <input id="setBaseUrl" type="text" placeholder="http://localhost:11434" autocomplete="off" spellcheck="false">
-      </div>
       <div class="settings-row" id="setKeyRow">
         <label for="setKey">API key</label>
         <input id="setKey" type="password" placeholder="Leave blank to keep current key" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="settings-row" id="setBaseUrlRow" hidden>
+        <label for="setBaseUrl">Base URL <span class="label-hint">(for local / self-hosted models)</span></label>
+        <input id="setBaseUrl" type="text" placeholder="http://localhost:11434" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="settings-row">
+        <label for="setModel">Model</label>
+        <select id="setModel" disabled>
+          <option value="">Enter your API key first</option>
+        </select>
+        <div class="settings-status" id="setModelStatus" hidden></div>
+        <div class="settings-help" id="setModelHelp"></div>
       </div>
       <div class="settings-row">
         <label for="setSystem">System prompt (optional)</label>
@@ -2590,6 +2627,150 @@ function applyConnectionStatus() {
   }
 }
 
+/* ────────── MODEL LIST FETCH ──────────
+   Hits each provider's /models endpoint to populate the dropdown.
+   Falls back to a hard-coded suggestion list on error.
+   ─────────────────────────────────────── */
+async function fetchProviderModels({ provider, apiKey, baseUrl, signal }) {
+  if (provider === 'anthropic') {
+    const res = await fetch('https://api.anthropic.com/v1/models', {
+      signal,
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+    });
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(()=>'').then(t=>t.slice(0,200))}`);
+    const data = await res.json();
+    return (data.data || [])
+      .map(m => m.id)
+      .filter(id => /^claude-/.test(id))
+      .sort()
+      .reverse(); // newest naming usually sorts last
+  }
+  if (provider === 'openai') {
+    const res = await fetch('https://api.openai.com/v1/models', {
+      signal,
+      headers: { authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    return (data.data || [])
+      .map(m => m.id)
+      .filter(id => /^(gpt-|o1|o3|chatgpt-)/i.test(id))
+      .sort();
+  }
+  if (provider === 'google') {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`, { signal });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    return (data.models || [])
+      .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map(m => (m.name || '').replace(/^models\//, ''))
+      .filter(Boolean)
+      .sort();
+  }
+  if (provider === 'ollama') {
+    const url = (baseUrl?.replace(/\/+$/, '') || 'http://localhost:11434') + '/api/tags';
+    const res = await fetch(url, { signal });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    return (data.models || []).map(m => m.name).filter(Boolean).sort();
+  }
+  if (provider === 'custom') {
+    const url = (baseUrl?.replace(/\/+$/, '') || '') + '/models';
+    const res = await fetch(url, {
+      signal,
+      headers: apiKey ? { authorization: `Bearer ${apiKey}` } : {},
+    });
+    if (!res.ok) throw new Error(`${res.status}`);
+    const data = await res.json();
+    const list = data.data || data.models || [];
+    return list.map(m => m.id || m.name).filter(Boolean).sort();
+  }
+  return [];
+}
+
+let _modelsAbort = null;
+
+function setStatus(el, kind, text) {
+  if (!el) return;
+  if (!text) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.classList.toggle('is-error', kind === 'error');
+  el.classList.toggle('is-loading', kind === 'loading');
+  el.innerHTML = (kind === 'loading' ? '<span class="spinner"></span>' : '') + escapeHtml(text);
+}
+
+function fillSelect(select, models, preferred, defaultModel) {
+  if (!models.length) {
+    select.innerHTML = `<option value="">No models available</option>`;
+    select.disabled = true;
+    return;
+  }
+  select.innerHTML = models.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+  select.disabled = false;
+  if (preferred && models.includes(preferred)) select.value = preferred;
+  else if (defaultModel && models.includes(defaultModel)) select.value = defaultModel;
+}
+
+async function refreshModels({ select, statusEl, provider, apiKey, baseUrl, preferredModel }) {
+  const cfg = PROVIDERS[provider];
+  if (!cfg) return;
+
+  // Cancel any prior fetch
+  if (_modelsAbort) { try { _modelsAbort.abort(); } catch {} }
+
+  if (cfg.needsKey && !apiKey) {
+    select.innerHTML = `<option value="">Enter your API key first</option>`;
+    select.disabled = true;
+    setStatus(statusEl, null, '');
+    return;
+  }
+  if (cfg.needsBaseUrl && !baseUrl) {
+    select.innerHTML = `<option value="">Enter base URL first</option>`;
+    select.disabled = true;
+    setStatus(statusEl, null, '');
+    return;
+  }
+
+  // Loading
+  select.innerHTML = `<option value="">Loading models…</option>`;
+  select.disabled = true;
+  setStatus(statusEl, 'loading', 'Fetching available models…');
+
+  const ctrl = new AbortController();
+  _modelsAbort = ctrl;
+  try {
+    const models = await fetchProviderModels({ provider, apiKey, baseUrl, signal: ctrl.signal });
+    if (ctrl.signal.aborted) return;
+    if (!models.length) {
+      // Empty list — fall back to suggested
+      fillSelect(select, cfg.suggested || [], preferredModel, cfg.defaultModel);
+      setStatus(statusEl, 'error', 'No models returned. Showing suggestions.');
+      return;
+    }
+    fillSelect(select, models, preferredModel, cfg.defaultModel);
+    setStatus(statusEl, null, '');
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    fillSelect(select, cfg.suggested || [], preferredModel, cfg.defaultModel);
+    const msg = (err.message || '') + '';
+    let label;
+    if (/401|403|unauthor|invalid/i.test(msg)) label = 'Invalid API key — showing suggested models.';
+    else if (/Failed to fetch|NetworkError|TypeError|CORS/i.test(msg)) {
+      label = (provider === 'ollama')
+        ? `Could not reach Ollama at ${baseUrl || 'http://localhost:11434'} — showing suggestions.`
+        : 'Network or CORS error — showing suggested models.';
+    }
+    else if (/404/.test(msg)) label = 'Endpoint not found — showing suggestions.';
+    else if (/429/.test(msg)) label = 'Rate-limited — showing suggested models.';
+    else label = 'Could not load models — showing suggestions.';
+    setStatus(statusEl, 'error', label);
+  }
+}
+
 /* ────────── GATE ────────── */
 const gate = document.getElementById('gate');
 const gateForm = document.getElementById('gateForm');
@@ -2604,11 +2785,10 @@ const gatePersist = document.getElementById('gatePersist');
 
 function syncGateForProvider() {
   const cfg = PROVIDERS[gateProvider.value];
-  gateModel.placeholder = cfg.defaultModel || 'model-name';
-  gateModel.value = cfg.defaultModel || '';
   gateKeyRow.hidden = !cfg.needsKey;
   gateBaseUrlRow.hidden = !cfg.needsBaseUrl;
-  if (cfg.needsBaseUrl) gateBaseUrl.value = cfg.defaultBaseUrl || '';
+  if (cfg.needsBaseUrl && !gateBaseUrl.value.trim()) gateBaseUrl.value = cfg.defaultBaseUrl || '';
+  triggerGateModelRefresh();
   updateGateSubmit();
 }
 function updateGateSubmit() {
@@ -2618,10 +2798,25 @@ function updateGateSubmit() {
   const urlOk = !cfg.needsBaseUrl || gateBaseUrl.value.trim();
   gateSubmit.disabled = !(keyOk && modelOk && urlOk);
 }
+function triggerGateModelRefresh() {
+  const apiKey = apiKeyInput.value.trim() || state.apiKey || '';
+  const baseUrl = gateBaseUrl.value.trim() || state.baseUrl || '';
+  refreshModels({
+    select: gateModel,
+    statusEl: document.getElementById('gateModelStatus'),
+    provider: gateProvider.value,
+    apiKey,
+    baseUrl,
+    preferredModel: state.model,
+  }).then(updateGateSubmit);
+}
 gateProvider.addEventListener('change', syncGateForProvider);
-gateModel.addEventListener('input', updateGateSubmit);
-gateBaseUrl.addEventListener('input', updateGateSubmit);
+gateModel.addEventListener('change', updateGateSubmit);
 apiKeyInput.addEventListener('input', updateGateSubmit);
+apiKeyInput.addEventListener('blur', () => { if (apiKeyInput.value.trim()) triggerGateModelRefresh(); });
+apiKeyInput.addEventListener('paste', () => setTimeout(triggerGateModelRefresh, 60));
+gateBaseUrl.addEventListener('input', updateGateSubmit);
+gateBaseUrl.addEventListener('blur', () => { if (gateBaseUrl.value.trim()) triggerGateModelRefresh(); });
 syncGateForProvider();
 
 gateForm.addEventListener('submit', e => {
@@ -2667,13 +2862,13 @@ const setPersist = document.getElementById('setPersist');
 
 function openSettings() {
   setProvider.value = state.provider;
-  syncSettingsForProvider();
-  setModel.value = state.model || '';
   setBaseUrl.value = state.baseUrl || PROVIDERS[state.provider].defaultBaseUrl || '';
   setKey.value = '';
   setKey.placeholder = state.apiKey ? '•••• key saved on this device' : 'sk-...';
   setSystem.value = state.systemPrompt || '';
   setPersist.checked = !!state.persist;
+  syncSettingsForProvider();
+  triggerSettingsModelRefresh();
   // default to "connection" tab
   settingsModal.querySelectorAll('.modal-tab').forEach(b => b.classList.toggle('is-active', b.dataset.tab === 'connection'));
   settingsModal.querySelectorAll('.settings-tab').forEach(t => t.hidden = t.dataset.tab !== 'connection');
@@ -2684,14 +2879,28 @@ function syncSettingsForProvider() {
   const cfg = PROVIDERS[setProvider.value];
   setKeyRow.hidden = !cfg.needsKey;
   setBaseUrlRow.hidden = !cfg.needsBaseUrl;
-  setModel.placeholder = cfg.defaultModel || 'model-name';
-  if (cfg.suggested?.length) {
-    setModelHelp.textContent = `Suggested: ${cfg.suggested.join(', ')}`;
-  } else if (setProvider.value === 'custom') {
+  if (cfg.needsBaseUrl && !setBaseUrl.value.trim()) setBaseUrl.value = cfg.defaultBaseUrl || '';
+  if (setProvider.value === 'custom') {
     setModelHelp.textContent = `Anything your endpoint accepts. Base URL should end before /chat/completions.`;
+  } else if (cfg.suggested?.length) {
+    setModelHelp.textContent = `Suggested: ${cfg.suggested.slice(0, 4).join(', ')}${cfg.suggested.length > 4 ? '…' : ''}`;
   } else {
     setModelHelp.textContent = '';
   }
+}
+function triggerSettingsModelRefresh() {
+  const provider = setProvider.value;
+  const cfg = PROVIDERS[provider];
+  const apiKey = (setKey.value.trim() || (cfg.needsKey ? state.apiKey : '')).trim();
+  const baseUrl = (setBaseUrl.value.trim() || cfg.defaultBaseUrl || '').trim();
+  refreshModels({
+    select: setModel,
+    statusEl: document.getElementById('setModelStatus'),
+    provider,
+    apiKey,
+    baseUrl,
+    preferredModel: state.model,
+  });
 }
 function refreshDataStats() {
   const el = document.getElementById('dataStats');
@@ -2701,7 +2910,10 @@ function refreshDataStats() {
   const quests = state.sideQuests.length;
   el.innerHTML = `<div>Chats: <strong>${chats}</strong> · Threads (incl. branches): <strong>${threads}</strong> · Side Quests: <strong>${quests}</strong></div>`;
 }
-setProvider.addEventListener('change', syncSettingsForProvider);
+setProvider.addEventListener('change', () => { syncSettingsForProvider(); triggerSettingsModelRefresh(); });
+setKey.addEventListener('blur', () => { if (setKey.value.trim()) triggerSettingsModelRefresh(); });
+setKey.addEventListener('paste', () => setTimeout(triggerSettingsModelRefresh, 60));
+setBaseUrl.addEventListener('blur', () => { if (setBaseUrl.value.trim()) triggerSettingsModelRefresh(); });
 settingsModal.querySelectorAll('.modal-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     settingsModal.querySelectorAll('.modal-tab').forEach(b => b.classList.toggle('is-active', b === btn));
@@ -2801,12 +3013,12 @@ applyConnectionStatus();
 if (hadPersisted && isReadyToChat()) {
   gate.hidden = true;
 } else if (hadPersisted && state.provider) {
-  // Pre-fill the gate with whatever we know
+  // Pre-fill the gate with whatever we know; preferredModel inside refreshModels
+  // will pick up state.model if it's in the fetched list.
   gateProvider.value = state.provider;
-  syncGateForProvider();
-  if (state.model) gateModel.value = state.model;
   if (state.baseUrl) gateBaseUrl.value = state.baseUrl;
   gatePersist.checked = state.persist;
+  syncGateForProvider();
   updateGateSubmit();
 }
 render();

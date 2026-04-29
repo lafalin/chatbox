@@ -1,0 +1,2800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chatbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:           #FFFFFF;
+  --bg-2:         #F7F7F8;
+  --bg-3:         #ECECEE;
+  --surface:      #FFFFFF;
+  --ink:          #0D0D0D;
+  --ink-2:        #353740;
+  --ink-3:        #6E6E80;
+  --ink-4:        #9A9AA8;
+  --ink-5:        #C5C5D2;
+  --line:         #E5E5E7;
+  --line-strong:  #D1D1D6;
+  --hover:        #F4F4F5;
+  --selected:     #ECECF1;
+  --accent:       #0D0D0D;
+  --accent-soft:  #E8E8EA;
+  --highlight:    #FFE08A;
+  --shadow-sm:    0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:    0 4px 16px rgba(0,0,0,0.06);
+  --shadow-lg:    0 12px 32px rgba(0,0,0,0.10);
+  --sans:         "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --mono:         "JetBrains Mono", ui-monospace, monospace;
+  --rail-w:       260px;
+  --thread-w:     440px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  letter-spacing: -0.005em;
+}
+button { font-family: inherit; cursor: pointer; }
+input, textarea { font-family: inherit; }
+
+/* ───────── APP SHELL ───────── */
+.app {
+  display: grid;
+  grid-template-columns: var(--rail-w) 1fr;
+  height: 100vh;
+}
+
+/* ───────── SIDEBAR ───────── */
+.sidebar {
+  background: var(--bg-2);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-top {
+  padding: 12px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.015em;
+}
+.brand-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+.side-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  width: 100%;
+  border-radius: 6px;
+  transition: background 100ms ease;
+  font-weight: 500;
+}
+.side-btn:hover { background: var(--bg-3); color: var(--ink); }
+.side-btn.is-active { background: var(--bg-3); color: var(--ink); }
+.side-btn svg { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.85; }
+.side-btn .count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  background: var(--bg-3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  min-width: 18px;
+  text-align: center;
+}
+.side-btn:hover .count { background: var(--bg); }
+
+.sidebar-section {
+  padding: 16px 16px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0;
+}
+.sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sidebar-list::-webkit-scrollbar { width: 6px; }
+.sidebar-list::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 3px; }
+.sidebar-list::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
+
+.recent-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 2px;
+}
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 400;
+  position: relative;
+}
+.recent-item .label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recent-item .caret {
+  width: 14px; height: 14px;
+  color: var(--ink-4);
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 3px;
+  transition: transform 150ms ease, background 100ms ease;
+}
+.recent-item .caret svg { width: 9px; height: 9px; }
+.recent-item.is-open .caret { transform: rotate(90deg); }
+.recent-item .caret:hover { background: var(--bg); color: var(--ink-2); }
+.recent-item:hover { background: var(--bg-3); color: var(--ink); }
+.recent-item.is-active { background: var(--bg-3); color: var(--ink); font-weight: 500; }
+.recent-item .delete-btn,
+.thread-tree-item .delete-btn {
+  width: 18px; height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--ink-4);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 100ms ease, background 100ms ease, color 100ms ease;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+.recent-item:hover .delete-btn,
+.thread-tree-item:hover .delete-btn { opacity: 1; }
+.recent-item .delete-btn:hover,
+.thread-tree-item .delete-btn:hover { background: var(--bg); color: #D14343; }
+.recent-item .delete-btn svg,
+.thread-tree-item .delete-btn svg { width: 11px; height: 11px; }
+
+.thread-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 1px 0 2px 14px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+  position: relative;
+}
+.thread-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.thread-tree-item:hover { background: var(--bg-3); color: var(--ink); }
+.thread-tree-item.is-active { background: var(--bg-3); color: var(--ink); font-weight: 500; }
+.thread-tree-item .tree-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-4);
+  flex-shrink: 0;
+}
+.thread-tree-item.is-active .tree-num { color: var(--ink-2); }
+.thread-tree-item .label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.empty-recents {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--ink-4);
+}
+
+.sidebar-bottom {
+  padding: 10px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  flex: 1;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.user-chip:hover { background: var(--bg-3); }
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.user-name { font-size: 13px; font-weight: 500; }
+.user-status {
+  font-size: 11px;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #10A37F;
+}
+.status-dot.disconnected { background: var(--ink-4); }
+
+/* ───────── MAIN ───────── */
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg);
+}
+
+.topbar {
+  height: 52px;
+  border-bottom: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 12px;
+  flex-shrink: 0;
+  font-size: 13.5px;
+}
+.topbar-title {
+  font-weight: 500;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.topbar-title .model-pill {
+  font-size: 11px;
+  color: var(--ink-3);
+  background: var(--bg-3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.topbar-spacer { flex: 1; }
+.icon-btn {
+  width: 32px; height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  display: grid;
+  place-items: center;
+  transition: background 100ms ease;
+}
+.icon-btn:hover { background: var(--bg-3); color: var(--ink); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* ───────── CHAT WORKSPACE (main + thread side panel) ───────── */
+.workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.main-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+  transition: flex 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* When threads are open, main chat shrinks */
+.workspace.has-threads .main-chat {
+  flex: 0 0 auto;
+  width: clamp(380px, 42%, 720px);
+}
+
+.thread-stack {
+  display: flex;
+  border-left: 1px solid var(--line);
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  background: var(--bg-2);
+  min-width: 0;
+}
+.thread-stack::-webkit-scrollbar { height: 8px; }
+.thread-stack::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+.thread-stack:empty { display: none; }
+
+/* ───────── CHAT PANEL (shared) ───────── */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+.chat-panel.is-thread {
+  width: var(--thread-w);
+  flex-shrink: 0;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+  animation: threadIn 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes threadIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.thread-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--bg);
+}
+.thread-header-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-3);
+  background: var(--bg-3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.thread-header-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thread-close {
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  display: grid; place-items: center;
+}
+.thread-close:hover { background: var(--bg-3); color: var(--ink); }
+.thread-close svg { width: 14px; height: 14px; }
+
+.thread-quote {
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border-left: 2px solid var(--ink-3);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  border-radius: 0 6px 6px 0;
+  flex-shrink: 0;
+}
+.thread-quote-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+/* ───────── MESSAGES ───────── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 0 24px;
+  scroll-behavior: smooth;
+}
+.messages::-webkit-scrollbar { width: 8px; }
+.messages::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+.messages::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
+
+.messages-inner {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.chat-panel.is-thread .messages-inner {
+  max-width: 100%;
+  padding: 0 18px;
+}
+
+.message {
+  display: flex;
+  gap: 14px;
+  animation: msgIn 240ms ease;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+.message.role-user .msg-avatar {
+  background: var(--ink);
+  color: white;
+}
+.message.role-assistant .msg-avatar {
+  background: var(--bg-3);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.msg-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.msg-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.msg-content {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+.chat-panel.is-thread .msg-content { font-size: 14px; }
+.msg-content p { margin-bottom: 0.85em; }
+.msg-content p:last-child { margin-bottom: 0; }
+.msg-content code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  background: var(--bg-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+.msg-content pre {
+  background: #0D0D0D;
+  color: #E5E5E7;
+  padding: 14px 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.msg-content pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+/* selection highlight */
+.message.role-assistant .msg-content::selection,
+.message.role-assistant .msg-content *::selection { background: var(--highlight); color: var(--ink); }
+
+/* branched indicator */
+.branched {
+  background: linear-gradient(180deg, transparent 65%, var(--highlight) 65%);
+  cursor: pointer;
+  transition: background 150ms ease;
+  padding-bottom: 1px;
+}
+.branched:hover { background: var(--highlight); }
+.branched .badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 9px;
+  background: var(--ink);
+  color: white;
+  padding: 1px 4px 0;
+  border-radius: 3px;
+  margin-left: 4px;
+  vertical-align: 1px;
+  line-height: 1.4;
+  font-weight: 500;
+  user-select: none;
+}
+
+.msg-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  margin-top: 4px;
+}
+.message:hover .msg-actions { opacity: 1; }
+.msg-action {
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  display: grid; place-items: center;
+}
+.msg-action:hover { background: var(--bg-3); color: var(--ink); }
+.msg-action svg { width: 13px; height: 13px; }
+
+/* ───────── COMPOSER ───────── */
+.composer-wrap {
+  flex-shrink: 0;
+  padding: 8px 24px 18px;
+  background: linear-gradient(180deg, transparent, var(--bg) 30%);
+}
+.chat-panel.is-thread .composer-wrap { padding: 8px 18px 16px; background: var(--bg); }
+
+.composer {
+  max-width: 740px;
+  margin: 0 auto;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  padding: 10px 10px 10px 14px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.chat-panel.is-thread .composer { max-width: 100%; }
+.composer:focus-within { border-color: var(--ink-3); box-shadow: var(--shadow-md); }
+.composer textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  background: transparent;
+  outline: none;
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  padding: 8px 4px;
+  min-height: 24px;
+  max-height: 200px;
+}
+.composer textarea::placeholder { color: var(--ink-4); }
+.composer-tools {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.tool-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  display: grid; place-items: center;
+}
+.tool-btn:hover { background: var(--bg-2); color: var(--ink); }
+.tool-btn svg { width: 16px; height: 16px; }
+
+.send-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: white;
+  border: none;
+  display: grid; place-items: center;
+  transition: background 120ms ease, opacity 120ms ease;
+}
+.send-btn:disabled { background: var(--ink-5); cursor: not-allowed; }
+.send-btn svg { width: 14px; height: 14px; }
+
+.composer-foot {
+  max-width: 740px;
+  margin: 4px auto 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+
+/* ───────── EMPTY STATE / LANDING CHAT ───────── */
+.landing {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0 24px 80px;
+  gap: 32px;
+}
+.landing h1 {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+.landing-composer {
+  width: 100%;
+  max-width: 740px;
+}
+
+/* ───────── SELECTION POPOVER ───────── */
+.sel-pop {
+  position: fixed;
+  background: var(--ink);
+  color: white;
+  border-radius: 8px;
+  padding: 4px;
+  display: flex;
+  gap: 1px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  animation: popIn 140ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sel-pop[hidden] { display: none; }
+.sel-pop button {
+  background: transparent;
+  color: white;
+  border: none;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.sel-pop button:hover { background: rgba(255,255,255,0.12); }
+.sel-pop svg { width: 13px; height: 13px; }
+.sel-pop-arrow {
+  position: absolute;
+  width: 8px; height: 8px;
+  background: var(--ink);
+  transform: rotate(45deg);
+  z-index: -1;
+}
+.sel-pop-arrow.up   { top: -3px; }
+.sel-pop-arrow.down { bottom: -3px; }
+
+/* ───────── MODAL (Side Quest + API connect) ───────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 13, 13, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 200;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 160ms ease;
+}
+.modal-overlay[hidden] { display: none; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 24px;
+  width: 480px;
+  max-width: 92vw;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--line);
+  animation: modalIn 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin-bottom: 4px;
+}
+.modal-sub {
+  font-size: 13px;
+  color: var(--ink-3);
+  margin-bottom: 18px;
+  line-height: 1.5;
+}
+.modal-quote {
+  background: var(--bg-2);
+  border-left: 2px solid var(--ink-3);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.55;
+  border-radius: 0 6px 6px 0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.modal label {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.modal textarea, .modal input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13.5px;
+  background: var(--bg);
+  color: var(--ink);
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.modal textarea { min-height: 90px; resize: vertical; }
+.modal textarea:focus, .modal input:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(13,13,13,0.06);
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 120ms ease;
+}
+.btn:hover { background: var(--bg-2); }
+.btn.is-primary { background: var(--ink); color: white; border-color: var(--ink); }
+.btn.is-primary:hover { background: #2A2A2E; }
+.btn.is-primary:disabled { background: var(--ink-5); border-color: var(--ink-5); cursor: not-allowed; }
+
+/* ───────── API CONNECT GATE ───────── */
+.gate {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.gate[hidden] { display: none; }
+.gate-card {
+  width: 100%;
+  max-width: 460px;
+  text-align: center;
+}
+.gate-mark {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: white;
+  display: grid; place-items: center;
+  margin: 0 auto 20px;
+  font-weight: 700;
+  font-size: 18px;
+}
+.gate-card h1 {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin-bottom: 8px;
+}
+.gate-card p {
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.55;
+  margin-bottom: 24px;
+}
+.gate-form {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.gate-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gate-row label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.gate-row select,
+.gate-row input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 13.5px;
+  background: var(--bg);
+  color: var(--ink);
+  outline: none;
+}
+.gate-row input:focus,
+.gate-row select:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(13,13,13,0.06);
+}
+.gate-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+.gate-hint svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+.gate-submit {
+  width: 100%;
+  padding: 11px;
+  background: var(--ink);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 4px;
+  transition: background 120ms ease;
+}
+.gate-submit:hover { background: #2A2A2E; }
+.gate-submit:disabled { background: var(--ink-5); cursor: not-allowed; }
+.gate-skip {
+  background: transparent;
+  border: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12.5px;
+  margin-top: 12px;
+  padding: 6px;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+.gate-skip:hover { color: var(--ink); }
+.gate-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.45;
+  cursor: pointer;
+  font-weight: 400;
+  user-select: none;
+}
+.gate-check input { margin-top: 2px; accent-color: var(--ink); }
+.gate-error {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #991B1B;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.gate-error[hidden] { display: none; }
+
+/* settings */
+.modal-tab-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.modal-tab {
+  padding: 8px 12px;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  color: var(--ink-3);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-weight: 500;
+}
+.modal-tab.is-active { color: var(--ink); border-bottom-color: var(--ink); }
+.modal-tab:hover { color: var(--ink); }
+.settings-section { margin-bottom: 16px; }
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.settings-row label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-bottom: 0;
+}
+.settings-row select,
+.settings-row input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--ink);
+  outline: none;
+}
+.settings-row input:focus,
+.settings-row select:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(13,13,13,0.06);
+}
+.settings-help {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.5;
+  margin-top: -4px;
+}
+.settings-danger {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.danger-btn {
+  background: transparent;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.danger-btn:hover { background: #FEF2F2; }
+.privacy-block {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  background: var(--bg-2);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.privacy-block ul {
+  margin-top: 8px;
+  margin-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.privacy-block code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ───────── NOTEBOOK ───────── */
+.notebook {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 32px 60px;
+  background: var(--bg);
+}
+.nb-inner { max-width: 760px; margin: 0 auto; }
+.nb-header { margin-bottom: 28px; }
+.nb-eyebrow {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.nb-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.nb-sub {
+  margin-top: 6px;
+  color: var(--ink-3);
+  font-size: 13.5px;
+}
+.nb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quest-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.quest-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
+.quest-quote {
+  font-size: 14.5px;
+  line-height: 1.55;
+  background: linear-gradient(180deg, transparent 70%, var(--highlight) 70%);
+  display: inline;
+  padding: 0 1px;
+}
+.quest-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--bg-2);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+.quest-note.empty { color: var(--ink-4); font-style: italic; }
+.quest-meta {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.quest-meta a {
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+.quest-meta a:hover { text-decoration: underline; }
+.nb-empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--ink-3);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.nb-empty strong {
+  display: block;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* ───────── TYPING DOTS ───────── */
+.typing {
+  display: inline-flex;
+  gap: 4px;
+  padding: 6px 0;
+  align-items: center;
+}
+.typing span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  animation: blink 1.2s infinite;
+}
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+
+/* ───────── TOAST ───────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  z-index: 400;
+  box-shadow: var(--shadow-lg);
+  animation: toastIn 200ms ease;
+}
+.toast[hidden] { display: none; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  :root { --thread-w: 90vw; }
+}
+</style>
+</head>
+<body>
+
+<!-- API CONNECTION GATE -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-mark">C</div>
+    <h1>Connect your model</h1>
+    <p>Bring your own API key, or run a local model. This page is 100% client-side — your key and your conversations never touch a server we control.</p>
+    <form class="gate-form" id="gateForm">
+      <div class="gate-row">
+        <label for="provider">Provider</label>
+        <select id="provider">
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="openai">OpenAI (GPT)</option>
+          <option value="google">Google (Gemini)</option>
+          <option value="ollama">Ollama (local, no key)</option>
+          <option value="custom">Custom (OpenAI-compatible)</option>
+        </select>
+      </div>
+      <div class="gate-row" id="gateModelRow">
+        <label for="gateModel">Model</label>
+        <input id="gateModel" type="text" placeholder="claude-sonnet-4-6" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="gate-row" id="gateBaseUrlRow" hidden>
+        <label for="gateBaseUrl">Base URL</label>
+        <input id="gateBaseUrl" type="text" placeholder="http://localhost:11434" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="gate-row" id="gateKeyRow">
+        <label for="apiKey">API key</label>
+        <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="gate-row">
+        <label class="gate-check">
+          <input type="checkbox" id="gatePersist" checked>
+          <span>Save on this device. Uncheck to clear when you close this tab.</span>
+        </label>
+      </div>
+      <div class="gate-hint">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7V5a4 4 0 018 0v2M3 7h10v6.5a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5V7z" stroke-linejoin="round"/></svg>
+        <span>No backend, no telemetry. Open DevTools → Network: requests go straight from your browser to the model provider.</span>
+      </div>
+      <button type="submit" class="gate-submit" id="gateSubmit">Connect</button>
+      <button type="button" class="gate-skip" id="gateSkip">Skip — try the UI with mock responses</button>
+    </form>
+  </div>
+</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="brand">
+        <span class="brand-mark">C</span>
+        <span>Chatbox</span>
+      </div>
+      <button class="side-btn" id="newChatBtn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 13.5L13 3l1 1L3.5 14.5l-1.5.5.5-1.5z" stroke-linejoin="round"/></svg>
+        <span>New chat</span>
+      </button>
+      <button class="side-btn" id="searchBtn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14" stroke-linecap="round"/></svg>
+        <span>Search chats</span>
+      </button>
+      <button class="side-btn" id="sideQuestBtn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 1.5h9v12l-4.5-3-4.5 3V1.5z" stroke-linejoin="round"/></svg>
+        <span>Side Quests</span>
+        <span class="count" id="questCount">0</span>
+      </button>
+    </div>
+    <div class="sidebar-section">Recents</div>
+    <div class="sidebar-list" id="recents"></div>
+    <div class="sidebar-bottom">
+      <div class="user-chip" id="settingsBtn" title="Open settings">
+        <div class="user-avatar" id="userAvatar">·</div>
+        <div style="min-width:0;flex:1;">
+          <div class="user-name" id="providerName">Not connected</div>
+          <div class="user-status"><span class="status-dot" id="statusDot"></span><span id="statusText">Click to connect</span></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">
+        <span>New chat</span>
+        <span class="model-pill" id="modelPill">claude-sonnet</span>
+      </div>
+      <div class="topbar-spacer"></div>
+      <button class="icon-btn" id="topbarSettingsBtn" title="Settings">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v1.7M8 12.8v1.7M14.5 8h-1.7M3.2 8H1.5M12.6 3.4l-1.2 1.2M4.6 11.4l-1.2 1.2M12.6 12.6l-1.2-1.2M4.6 4.6L3.4 3.4" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="workspace" id="workspace">
+      <div class="main-chat" id="mainChat"></div>
+      <div class="thread-stack" id="threadStack"></div>
+    </div>
+  </main>
+</div>
+
+<!-- SELECTION POPOVER -->
+<div class="sel-pop" id="selPop" hidden>
+  <button id="threadBtn" title="Open a new thread">
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 2v6a3 3 0 003 3h6M9 8l3 3-3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Thread
+  </button>
+  <button id="questBtn" title="Save to Side Quests">
+    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1.5h8v11l-4-2.5-4 2.5V1.5z" stroke-linejoin="round"/></svg>
+    Side Quest
+  </button>
+  <span class="sel-pop-arrow" id="popArrow"></span>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal" hidden>
+  <div class="modal" style="width:520px;max-width:94vw;">
+    <h2>Settings</h2>
+    <p class="modal-sub">Everything you set here lives in your browser. Nothing leaves except direct calls to your chosen model provider.</p>
+
+    <div class="modal-tab-row">
+      <button class="modal-tab is-active" data-tab="connection">Connection</button>
+      <button class="modal-tab" data-tab="data">Data</button>
+      <button class="modal-tab" data-tab="privacy">Privacy</button>
+    </div>
+
+    <div class="settings-tab" data-tab="connection">
+      <div class="settings-row">
+        <label for="setProvider">Provider</label>
+        <select id="setProvider">
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="openai">OpenAI (GPT)</option>
+          <option value="google">Google (Gemini)</option>
+          <option value="ollama">Ollama (local, no key)</option>
+          <option value="custom">Custom (OpenAI-compatible)</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <label for="setModel">Model</label>
+        <input id="setModel" type="text" placeholder="claude-sonnet-4-6" autocomplete="off" spellcheck="false">
+        <div class="settings-help" id="setModelHelp"></div>
+      </div>
+      <div class="settings-row" id="setBaseUrlRow" hidden>
+        <label for="setBaseUrl">Base URL</label>
+        <input id="setBaseUrl" type="text" placeholder="http://localhost:11434" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="settings-row" id="setKeyRow">
+        <label for="setKey">API key</label>
+        <input id="setKey" type="password" placeholder="Leave blank to keep current key" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="settings-row">
+        <label for="setSystem">System prompt (optional)</label>
+        <textarea id="setSystem" rows="3" placeholder="You are a helpful assistant…" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:9px 12px;font:inherit;font-size:13px;background:var(--bg);color:var(--ink);outline:none;resize:vertical;min-height:60px;"></textarea>
+      </div>
+      <div class="settings-row">
+        <label class="gate-check">
+          <input type="checkbox" id="setPersist">
+          <span>Save key on this device. Uncheck to drop it when you close this tab.</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-tab" data-tab="data" hidden>
+      <div class="privacy-block">
+        Your conversations and Side Quests live in <code>localStorage</code>, scoped to this browser only.
+      </div>
+      <div style="margin-top:14px;font-size:13px;color:var(--ink-2);" id="dataStats"></div>
+      <div class="settings-danger">
+        <button class="danger-btn" id="clearChatsBtn">Delete all chats &amp; quests</button>
+        <button class="danger-btn" id="clearAllBtn" style="margin-left:8px;">Forget everything (incl. API key)</button>
+      </div>
+    </div>
+
+    <div class="settings-tab" data-tab="privacy" hidden>
+      <div class="privacy-block">
+        <strong>This app has no backend.</strong>
+        <ul>
+          <li>Your API key is read in your browser and sent only to the provider you pick.</li>
+          <li>Your messages are sent only to that provider, in the same request.</li>
+          <li>No analytics, no tracking, no telemetry.</li>
+          <li>The whole page is one HTML file. <code>View Source</code> shows exactly what runs.</li>
+          <li>Open DevTools → Network. The only outbound calls go to your provider's domain.</li>
+        </ul>
+      </div>
+      <div style="margin-top:14px;font-size:12.5px;color:var(--ink-3);line-height:1.55;">
+        Risks you should still think about:
+        <ul style="margin-top:6px;margin-left:18px;display:flex;flex-direction:column;gap:4px;">
+          <li>Anyone with access to your browser profile can read your chats and key from <code>localStorage</code>. Use a key with the smallest scope you can.</li>
+          <li>Browser extensions you've installed can read this page like any other. Only trust extensions you'd trust with a password.</li>
+          <li>The provider you connect to (Anthropic, OpenAI, etc.) sees your prompts under their own privacy policy.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="settingsCancel">Cancel</button>
+      <button class="btn is-primary" id="settingsSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIDE QUEST MODAL -->
+<div class="modal-overlay" id="questModal" hidden>
+  <div class="modal">
+    <h2>Save to Side Quests</h2>
+    <p class="modal-sub">A snippet you want to revisit later. Add a note for future-you.</p>
+    <div class="modal-quote" id="questQuote"></div>
+    <label for="questNote">Your note</label>
+    <textarea id="questNote" placeholder="What were you thinking when you highlighted this?"></textarea>
+    <div class="modal-actions">
+      <button class="btn" id="questCancel">Cancel</button>
+      <button class="btn is-primary" id="questSave">Save quest</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ──────────────────────────────────────────────────────────────
+   Chatbox — single-file, BYOK, no backend.
+   Read the source: nothing here phones home.
+   Storage: localStorage on this origin only.
+   Network: outbound fetch() goes only to the provider you pick.
+   ────────────────────────────────────────────────────────────── */
+
+/* ────────── PROVIDERS ────────── */
+const PROVIDERS = {
+  anthropic: {
+    label: 'Anthropic',
+    defaultModel: 'claude-sonnet-4-6',
+    needsKey: true,
+    needsBaseUrl: false,
+    suggested: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
+  },
+  openai: {
+    label: 'OpenAI',
+    defaultModel: 'gpt-4o',
+    needsKey: true,
+    needsBaseUrl: false,
+    suggested: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo', 'o1-mini'],
+  },
+  google: {
+    label: 'Google',
+    defaultModel: 'gemini-1.5-pro',
+    needsKey: true,
+    needsBaseUrl: false,
+    suggested: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'],
+  },
+  ollama: {
+    label: 'Ollama (local)',
+    defaultModel: 'llama3',
+    needsKey: false,
+    needsBaseUrl: true,
+    defaultBaseUrl: 'http://localhost:11434',
+    suggested: ['llama3', 'llama3.1', 'mistral', 'codellama', 'qwen2'],
+  },
+  custom: {
+    label: 'Custom',
+    defaultModel: '',
+    needsKey: true,
+    needsBaseUrl: true,
+    defaultBaseUrl: 'https://api.example.com/v1',
+    suggested: [],
+  },
+};
+
+/* ────────── STATE ────────── */
+const STORAGE_KEY = 'chatbox.v1';
+
+const state = {
+  threads: new Map(),
+  mainOrder: [],
+  sideQuests: [],
+  activeMainId: null,
+  openThreadIds: [],
+  view: 'chat',
+  threadCounter: 0,
+  connected: false,
+  demo: false,
+  // settings (loaded from localStorage if present)
+  provider: 'anthropic',
+  model: 'claude-sonnet-4-6',
+  apiKey: '',
+  baseUrl: '',
+  systemPrompt: '',
+  persist: true,
+  // ephemeral
+  inflight: null, // AbortController for current request
+};
+
+const uid = (p='id') => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`;
+
+function createThread({ parentId=null, parentMessageId=null, quotedText=null, title=null, isMain=false } = {}) {
+  // Per-parent numbering: count existing siblings (children sharing same parentId) to compute num
+  let num = 0;
+  if (!isMain) {
+    let siblingCount = 0;
+    state.threads.forEach(t => { if (t.parentId === parentId) siblingCount += 1; });
+    num = siblingCount + 1;
+  }
+  const id = uid('th');
+  const thread = {
+    id, num,
+    title: title || (isMain ? 'New chat' : 'New thread'),
+    parentId, parentMessageId, quotedText,
+    messages: [],
+    createdAt: Date.now(),
+    isMain,
+  };
+  state.threads.set(id, thread);
+  if (isMain) state.mainOrder.unshift(id);
+  return thread;
+}
+
+function addMessage(threadId, role, content) {
+  const thread = state.threads.get(threadId);
+  if (!thread) return null;
+  const msg = { id: uid('msg'), role, content, branches: [], createdAt: Date.now() };
+  thread.messages.push(msg);
+  if (role === 'user' && /^new (chat|thread)$/i.test(thread.title)) {
+    thread.title = autoTitle(content);
+  }
+  return msg;
+}
+
+function autoTitle(text) {
+  const c = text.replace(/\s+/g, ' ').trim();
+  const words = c.split(' ').slice(0, 6).join(' ');
+  return words + (c.split(' ').length > 6 ? '…' : '');
+}
+
+/* ────────── PROVIDER CALLS ──────────
+   All requests are issued from THIS browser. No proxy.
+   ─────────────────────────────────────── */
+
+// Build the chronological message list for a thread, walking up through
+// any parent-thread quote so the model has the right context.
+function buildHistoryFor(threadId) {
+  const out = [];
+  const t = state.threads.get(threadId);
+  if (!t) return out;
+  // Include parent context if this is a child thread
+  if (t.parentId && t.quotedText) {
+    out.push({
+      role: 'user',
+      content: `[For context, the user highlighted this quote from a parent conversation and started a side thread to discuss it]\n\n"${t.quotedText}"`,
+    });
+    out.push({
+      role: 'assistant',
+      content: 'Got it — I\'ll focus on that snippet.',
+    });
+  }
+  for (const m of t.messages) {
+    if (!m.content && m.role === 'assistant') continue; // skip empty in-flight
+    out.push({ role: m.role, content: m.content });
+  }
+  return out;
+}
+
+async function* sseLines(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, idx).replace(/\r$/, '');
+      buf = buf.slice(idx + 1);
+      if (line) yield line;
+    }
+  }
+  if (buf) yield buf;
+}
+
+async function callAnthropic({ messages, model, apiKey, system, signal, onChunk }) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    signal,
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4096,
+      stream: true,
+      ...(system ? { system } : {}),
+      messages,
+    }),
+  });
+  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${(await res.text()).slice(0, 400)}`);
+  let acc = '';
+  for await (const line of sseLines(res)) {
+    if (!line.startsWith('data:')) continue;
+    const data = line.slice(5).trim();
+    if (!data || data === '[DONE]') continue;
+    try {
+      const evt = JSON.parse(data);
+      if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+        acc += evt.delta.text || '';
+        onChunk(acc);
+      } else if (evt.type === 'message_delta' && evt.delta?.stop_reason) {
+        // final
+      } else if (evt.type === 'error') {
+        throw new Error(evt.error?.message || 'Anthropic error');
+      }
+    } catch (e) {
+      if (e instanceof SyntaxError) continue;
+      throw e;
+    }
+  }
+  return acc;
+}
+
+async function callOpenAICompatible({ messages, model, apiKey, system, baseUrl, signal, onChunk }) {
+  const url = (baseUrl?.replace(/\/+$/, '') || 'https://api.openai.com/v1') + '/chat/completions';
+  const finalMessages = system ? [{ role: 'system', content: system }, ...messages] : messages;
+  const res = await fetch(url, {
+    method: 'POST',
+    signal,
+    headers: {
+      'content-type': 'application/json',
+      ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model,
+      stream: true,
+      messages: finalMessages,
+    }),
+  });
+  if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 400)}`);
+  let acc = '';
+  for await (const line of sseLines(res)) {
+    if (!line.startsWith('data:')) continue;
+    const data = line.slice(5).trim();
+    if (!data || data === '[DONE]') continue;
+    try {
+      const evt = JSON.parse(data);
+      const delta = evt.choices?.[0]?.delta?.content || '';
+      if (delta) { acc += delta; onChunk(acc); }
+    } catch (e) {
+      if (e instanceof SyntaxError) continue;
+      throw e;
+    }
+  }
+  return acc;
+}
+
+async function callGoogle({ messages, model, apiKey, system, signal, onChunk }) {
+  // Convert OpenAI-style messages to Gemini contents
+  const contents = messages.map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+  const body = {
+    contents,
+    ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    signal,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Google ${res.status}: ${(await res.text()).slice(0, 400)}`);
+  let acc = '';
+  for await (const line of sseLines(res)) {
+    if (!line.startsWith('data:')) continue;
+    const data = line.slice(5).trim();
+    if (!data || data === '[DONE]') continue;
+    try {
+      const evt = JSON.parse(data);
+      const parts = evt.candidates?.[0]?.content?.parts;
+      if (Array.isArray(parts)) {
+        for (const p of parts) if (p.text) { acc += p.text; onChunk(acc); }
+      }
+    } catch (e) {
+      if (e instanceof SyntaxError) continue;
+      throw e;
+    }
+  }
+  return acc;
+}
+
+async function callOllama({ messages, model, baseUrl, system, signal, onChunk }) {
+  const url = (baseUrl?.replace(/\/+$/, '') || 'http://localhost:11434') + '/api/chat';
+  const finalMessages = system ? [{ role: 'system', content: system }, ...messages] : messages;
+  const res = await fetch(url, {
+    method: 'POST',
+    signal,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model, messages: finalMessages, stream: true }),
+  });
+  if (!res.ok) throw new Error(`Ollama ${res.status}: ${(await res.text()).slice(0, 400)}`);
+  let acc = '';
+  for await (const line of sseLines(res)) {
+    if (!line.trim()) continue;
+    try {
+      const evt = JSON.parse(line);
+      const delta = evt.message?.content || '';
+      if (delta) { acc += delta; onChunk(acc); }
+      if (evt.done) break;
+    } catch (e) {
+      if (e instanceof SyntaxError) continue;
+      throw e;
+    }
+  }
+  return acc;
+}
+
+// ── Mock fallback (when "Skip" was used) ──
+const MOCK_REPLIES = [
+  `Demo mode is on, so this reply is generated locally with no model behind it.\n\nClick **Settings** in the bottom-left to connect a real provider — your key never leaves this browser.`,
+  `(Demo) I can't actually answer that without a connected model. Open Settings to add an API key, or run Ollama locally and switch the provider to **Ollama**.`,
+  `(Demo) Threading and Side Quests still work — try highlighting any sentence in this reply to branch a sub-thread or save a snippet.`,
+];
+async function callMock({ signal, onChunk }) {
+  const text = MOCK_REPLIES[Math.floor(Math.random() * MOCK_REPLIES.length)];
+  const tokens = text.split(/(\s+)/);
+  let acc = '';
+  for (const t of tokens) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    acc += t;
+    onChunk(acc);
+    await new Promise(r => setTimeout(r, 14 + Math.random() * 22));
+  }
+  return acc;
+}
+
+async function streamFromProvider({ history, signal, onChunk }) {
+  const provider = state.provider;
+  const model = state.model || PROVIDERS[provider]?.defaultModel || '';
+  const apiKey = state.apiKey;
+  const baseUrl = state.baseUrl;
+  const system = state.systemPrompt?.trim() || '';
+
+  if (state.demo) return callMock({ signal, onChunk });
+
+  if (provider === 'anthropic') return callAnthropic({ messages: history, model, apiKey, system, signal, onChunk });
+  if (provider === 'openai')    return callOpenAICompatible({ messages: history, model, apiKey, system, signal, onChunk });
+  if (provider === 'google')    return callGoogle({ messages: history, model, apiKey, system, signal, onChunk });
+  if (provider === 'ollama')    return callOllama({ messages: history, model, baseUrl, system, signal, onChunk });
+  if (provider === 'custom')    return callOpenAICompatible({ messages: history, model, apiKey, system, baseUrl, signal, onChunk });
+  throw new Error(`Unknown provider: ${provider}`);
+}
+
+/* ────────── HELPERS ────────── */
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function renderContent(content, branches) {
+  const sorted = [...(branches || [])].sort((a,b) => a.start - b.start);
+  let html = '', cursor = 0;
+  for (const b of sorted) {
+    if (b.start > cursor) html += escapeHtml(content.slice(cursor, b.start));
+    html += `<span class="branched" data-thread-id="${b.threadId}" data-thread-num="${b.threadNum}">${escapeHtml(content.slice(b.start, b.end))}<span class="badge">${b.threadNum}</span></span>`;
+    cursor = b.end;
+  }
+  if (cursor < content.length) html += escapeHtml(content.slice(cursor));
+  // markdown-lite: **bold**, paragraphs, numbered lists
+  return html.split(/\n\n+/).map(p => {
+    p = p.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.hidden = true, 1800);
+}
+
+/* ────────── RENDER ────────── */
+function render() {
+  renderSidebar();
+  if (state.view === 'notebook') {
+    renderNotebook();
+  } else {
+    renderChat();
+  }
+}
+
+function deleteThreadCascade(threadId) {
+  // Collect this thread + all descendants
+  const toDelete = new Set();
+  const collect = (id) => {
+    toDelete.add(id);
+    state.threads.forEach(t => { if (t.parentId === id) collect(t.id); });
+  };
+  collect(threadId);
+
+  // Remove branch markers in any remaining message that point at deleted threads
+  state.threads.forEach(t => {
+    if (toDelete.has(t.id)) return;
+    t.messages.forEach(m => {
+      if (m.branches && m.branches.length) {
+        m.branches = m.branches.filter(b => !toDelete.has(b.threadId));
+      }
+    });
+  });
+
+  // Drop any side quests anchored to deleted threads
+  state.sideQuests = state.sideQuests.filter(q => !toDelete.has(q.threadId));
+
+  // Remove from threads map and main order
+  toDelete.forEach(id => state.threads.delete(id));
+  state.mainOrder = state.mainOrder.filter(id => !toDelete.has(id));
+
+  // Clean openThreadIds: drop deleted ids and anything after them
+  for (let i = 0; i < state.openThreadIds.length; i++) {
+    if (toDelete.has(state.openThreadIds[i])) {
+      state.openThreadIds = state.openThreadIds.slice(0, i);
+      break;
+    }
+  }
+
+  // Reset active main if it was deleted
+  if (state.activeMainId && toDelete.has(state.activeMainId)) {
+    state.activeMainId = state.mainOrder[0] || null;
+    state.openThreadIds = [];
+  }
+
+  // Tidy expanded set
+  if (state.expandedRoots) {
+    toDelete.forEach(id => state.expandedRoots.delete(id));
+  }
+
+  showToast('Deleted');
+}
+
+function getChildThreadsFlat(rootId) {
+  // BFS through state.threads, collecting all descendants of rootId in creation order
+  const out = [];
+  const visit = (parentId, depth) => {
+    const kids = [];
+    state.threads.forEach(t => { if (t.parentId === parentId) kids.push(t); });
+    kids.sort((a,b) => a.num - b.num);
+    for (const k of kids) {
+      out.push({ thread: k, depth });
+      visit(k.id, depth + 1);
+    }
+  };
+  visit(rootId, 0);
+  return out;
+}
+
+function renderSidebar() {
+  const recents = document.getElementById('recents');
+  if (state.mainOrder.length === 0) {
+    recents.innerHTML = `<div class="empty-recents">Your chats will appear here.</div>`;
+  } else {
+    if (!state.expandedRoots) state.expandedRoots = new Set();
+
+    recents.innerHTML = state.mainOrder.map(id => {
+      const t = state.threads.get(id);
+      const isActive = state.view === 'chat' && state.activeMainId === id
+        && state.openThreadIds.length === 0;
+      const children = getChildThreadsFlat(id);
+      const hasChildren = children.length > 0;
+      const isOpen = state.expandedRoots.has(id);
+      const caretIcon = hasChildren
+        ? `<span class="caret" data-toggle="${id}"><svg viewBox="0 0 9 9" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 1.5L6 4.5 3 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`
+        : `<span class="caret" style="opacity:0;pointer-events:none;"></span>`;
+      const treeHtml = (hasChildren && isOpen) ? `
+        <div class="thread-tree">
+          ${children.map(({ thread: ct, depth }) => {
+            const activeChild = state.view === 'chat'
+              && state.activeMainId === id
+              && state.openThreadIds[state.openThreadIds.length - 1] === ct.id;
+            return `<div class="thread-tree-item ${activeChild ? 'is-active' : ''}" data-thread="${ct.id}" data-root="${id}" style="padding-left:${8 + depth * 12}px;" title="${escapeHtml(ct.title)}">
+              <span class="tree-num">T${ct.num}</span>
+              <span class="label">${escapeHtml(ct.title)}</span>
+              <button class="delete-btn" data-delete="${ct.id}" title="Delete thread" aria-label="Delete thread">
+                <svg viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3h7M4.5 3V2a.5.5 0 01.5-.5h1a.5.5 0 01.5.5v1M3.5 3l.4 6a.6.6 0 00.6.5h2a.6.6 0 00.6-.5l.4-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>`;
+          }).join('')}
+        </div>
+      ` : '';
+      return `
+        <div class="recent-row">
+          <div class="recent-item ${isActive ? 'is-active' : ''} ${isOpen ? 'is-open' : ''}" data-thread="${id}" title="${escapeHtml(t.title)}">
+            ${caretIcon}
+            <span class="label">${escapeHtml(t.title)}</span>
+            <button class="delete-btn" data-delete="${id}" title="Delete chat" aria-label="Delete chat">
+              <svg viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3h7M4.5 3V2a.5.5 0 01.5-.5h1a.5.5 0 01.5.5v1M3.5 3l.4 6a.6.6 0 00.6.5h2a.6.6 0 00.6-.5l.4-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          ${treeHtml}
+        </div>
+      `;
+    }).join('');
+  }
+  document.getElementById('questCount').textContent = state.sideQuests.length;
+  document.getElementById('sideQuestBtn').classList.toggle('is-active', state.view === 'notebook');
+
+  // Caret toggles (must run before main click handler so stopPropagation works)
+  recents.querySelectorAll('.caret[data-toggle]').forEach(c => {
+    c.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = c.dataset.toggle;
+      if (state.expandedRoots.has(id)) state.expandedRoots.delete(id);
+      else state.expandedRoots.add(id);
+      render();
+    });
+  });
+  // Delete buttons (must be wired before row-click so stopPropagation works)
+  recents.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const tid = btn.dataset.delete;
+      const t = state.threads.get(tid);
+      if (!t) return;
+      const label = t.isMain ? 'this chat and all its threads' : 'this thread and all its sub-threads';
+      if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
+      deleteThreadCascade(tid);
+      persist();
+      render();
+    });
+  });
+  // Click main row → open root chat
+  recents.querySelectorAll('.recent-item').forEach(el => {
+    el.addEventListener('click', (e) => {
+      // Ignore clicks that originated on the caret or delete
+      if (e.target.closest('.caret[data-toggle]')) return;
+      if (e.target.closest('.delete-btn')) return;
+      state.view = 'chat';
+      state.activeMainId = el.dataset.thread;
+      state.openThreadIds = [];
+      render();
+    });
+  });
+  // Click tree item → open that specific thread
+  recents.querySelectorAll('.thread-tree-item').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      if (e.target.closest('.delete-btn')) return;
+      const tid = el.dataset.thread;
+      const rootId = el.dataset.root;
+      const t = state.threads.get(tid);
+      if (!t) return;
+      // Build lineage from this thread back to root, exclude root
+      const chain = [];
+      let cur = t;
+      while (cur && cur.parentId) {
+        chain.unshift(cur.id);
+        cur = state.threads.get(cur.parentId);
+      }
+      state.view = 'chat';
+      state.activeMainId = rootId;
+      state.openThreadIds = chain;
+      render();
+    });
+  });
+
+  // model pill
+  const pill = document.getElementById('modelPill');
+  if (pill) pill.textContent = state.demo ? 'demo' : (state.model || 'no model');
+
+  applyConnectionStatus();
+}
+
+function renderChat() {
+  // Toggle notebook visibility
+  const nb = document.querySelector('.notebook');
+  if (nb) nb.style.display = 'none';
+  document.querySelector('.workspace').style.display = '';
+  document.querySelector('.topbar').style.display = '';
+
+  const workspace = document.getElementById('workspace');
+  workspace.classList.toggle('has-threads', state.openThreadIds.length > 0);
+
+  renderMainChat();
+  renderThreadStack();
+
+  // Topbar title
+  const tt = document.getElementById('topbarTitle');
+  const main = state.activeMainId ? state.threads.get(state.activeMainId) : null;
+  tt.querySelector('span').textContent = main ? main.title : 'New chat';
+}
+
+function renderMainChat() {
+  const root = document.getElementById('mainChat');
+  const main = state.activeMainId ? state.threads.get(state.activeMainId) : null;
+
+  // Empty / landing state
+  if (!main || main.messages.length === 0) {
+    root.innerHTML = `
+      <div class="landing">
+        <h1>What can I help with?</h1>
+        <div class="landing-composer">
+          ${composerHtml('landing', "Ask anything…")}
+        </div>
+      </div>
+    `;
+    wireComposer(root.querySelector('.composer'), 'landing');
+    return;
+  }
+
+  // Conversation
+  root.innerHTML = `
+    <div class="chat-panel">
+      <div class="messages" data-thread-id="${main.id}">
+        <div class="messages-inner">
+          ${main.messages.map(m => messageHtml(m)).join('')}
+        </div>
+      </div>
+      <div class="composer-wrap">
+        ${composerHtml(main.id, "Message Chatbox…")}
+        <div class="composer-foot">Chatbox can make mistakes. Verify important info.</div>
+      </div>
+    </div>
+  `;
+  wireComposer(root.querySelector('.composer'), main.id);
+  wireBranchedClicks(root);
+  scrollToBottom(root.querySelector('.messages'));
+}
+
+function renderThreadStack() {
+  const stack = document.getElementById('threadStack');
+  stack.innerHTML = state.openThreadIds.map(tid => {
+    const t = state.threads.get(tid);
+    if (!t) return '';
+    return `
+      <div class="chat-panel is-thread" data-thread-id="${t.id}">
+        <div class="thread-header">
+          <span class="thread-header-num">T${t.num}</span>
+          <span class="thread-header-title">${escapeHtml(t.title)}</span>
+          <button class="thread-close" data-close="${t.id}" title="Close thread">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3l8 8M11 3l-8 8" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        ${t.quotedText ? `<div class="thread-quote"><span class="thread-quote-label">From parent</span>${escapeHtml(t.quotedText)}</div>` : ''}
+        <div class="messages" data-thread-id="${t.id}">
+          <div class="messages-inner">
+            ${t.messages.length ? t.messages.map(m => messageHtml(m)).join('') : `<div style="color:var(--ink-4);font-size:13px;text-align:center;padding:20px 0;">A new thread. Continue the conversation here.</div>`}
+          </div>
+        </div>
+        <div class="composer-wrap">
+          ${composerHtml(t.id, "Continue this thread…")}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  stack.querySelectorAll('.chat-panel.is-thread').forEach(panel => {
+    const tid = panel.dataset.threadId;
+    wireComposer(panel.querySelector('.composer'), tid);
+    wireBranchedClicks(panel);
+    const closeBtn = panel.querySelector('.thread-close');
+    closeBtn.addEventListener('click', () => closeThread(tid));
+    scrollToBottom(panel.querySelector('.messages'));
+  });
+
+  // Auto-scroll the thread stack so the rightmost (newest) panel is fully visible
+  setTimeout(() => {
+    const last = stack.lastElementChild;
+    if (last && last.scrollIntoView) {
+      // Use scrollLeft directly to avoid scrollIntoView side-effects on the parent
+      stack.scrollLeft = stack.scrollWidth;
+    }
+  }, 60);
+}
+
+function messageHtml(m) {
+  const avatarText = m.role === 'user' ? 'Y' : 'C';
+  const name = m.role === 'user' ? 'You' : 'Chatbox';
+  const actions = m.role === 'assistant' ? `
+    <div class="msg-actions">
+      <button class="msg-action" data-act="copy" data-msg="${m.id}" title="Copy"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="8" height="9" rx="1.2"/><path d="M5 3V2a1 1 0 011-1h4a1 1 0 011 1v8a1 1 0 01-1 1h-1"/></svg></button>
+      <button class="msg-action" data-act="regen" data-msg="${m.id}" title="Regenerate"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 7a5 5 0 018.5-3.5L12 5M12 2v3h-3M12 7a5 5 0 01-8.5 3.5L2 9M2 12V9h3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  ` : '';
+  return `
+    <div class="message role-${m.role}" data-msg-id="${m.id}">
+      <div class="msg-avatar">${avatarText}</div>
+      <div class="msg-body">
+        <div class="msg-name">${name}</div>
+        <div class="msg-content">${renderContent(m.content, m.branches)}</div>
+        ${actions}
+      </div>
+    </div>
+  `;
+}
+
+function composerHtml(threadId, placeholder) {
+  return `
+    <div class="composer" data-thread-id="${threadId}">
+      <textarea rows="1" placeholder="${placeholder}"></textarea>
+      <div class="composer-tools">
+        <button class="tool-btn" title="Attach" type="button">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 5L5.5 10.5a2 2 0 102.83 2.83L13 8.5a3.5 3.5 0 10-5-5L3.5 8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <button class="send-btn" disabled type="button" aria-label="Send">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 12V2M3 6l4-4 4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  `;
+}
+
+function wireComposer(composer, threadId) {
+  if (!composer) return;
+  const ta = composer.querySelector('textarea');
+  const btn = composer.querySelector('.send-btn');
+  ta.addEventListener('input', () => {
+    btn.disabled = !ta.value.trim();
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(200, ta.scrollHeight) + 'px';
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (ta.value.trim()) handleSend(threadId, ta.value);
+    }
+  });
+  btn.addEventListener('click', () => {
+    if (ta.value.trim()) handleSend(threadId, ta.value);
+  });
+}
+
+function wireBranchedClicks(root) {
+  root.querySelectorAll('.branched').forEach(span => {
+    span.addEventListener('click', e => {
+      e.stopPropagation();
+      const tid = span.dataset.threadId;
+      if (!state.threads.has(tid)) return;
+
+      // Determine which panel this branched span sits in
+      const panel = span.closest('.chat-panel');
+      const sourceThreadId = panel?.dataset?.threadId
+        || (panel && !panel.classList.contains('is-thread') ? state.activeMainId : null);
+
+      if (state.openThreadIds.includes(tid)) {
+        // Already open — no-op (it's already visible)
+        return;
+      }
+      if (sourceThreadId && state.openThreadIds.includes(sourceThreadId)) {
+        // Source is a thread already in stack → append after it
+        const idx = state.openThreadIds.indexOf(sourceThreadId);
+        state.openThreadIds = state.openThreadIds.slice(0, idx + 1).concat([tid]);
+      } else if (sourceThreadId === state.activeMainId) {
+        // Source is the main chat → reset stack to just this child
+        state.openThreadIds = [tid];
+      } else {
+        // Fallback: rebuild lineage from the target's ancestry
+        const chain = [];
+        let cur = state.threads.get(tid);
+        while (cur && cur.parentId) {
+          chain.unshift(cur.id);
+          cur = state.threads.get(cur.parentId);
+        }
+        state.openThreadIds = chain;
+      }
+      render();
+    });
+  });
+}
+
+function scrollToBottom(el) {
+  if (!el) return;
+  setTimeout(() => { el.scrollTop = el.scrollHeight; }, 30);
+}
+
+/* ────────── SEND ────────── */
+async function handleSend(threadId, text) {
+  let actualThreadId = threadId;
+
+  if (threadId === 'landing') {
+    const t = createThread({ isMain: true });
+    state.activeMainId = t.id;
+    actualThreadId = t.id;
+  }
+
+  const thread = state.threads.get(actualThreadId);
+  if (!thread) return;
+
+  const trimmed = text.trim();
+  addMessage(actualThreadId, 'user', trimmed);
+  render();
+  persist();
+
+  setTimeout(() => {
+    const ta = document.querySelector(`.composer[data-thread-id="${actualThreadId}"] textarea`);
+    if (ta) { ta.value = ''; ta.style.height = 'auto'; ta.dispatchEvent(new Event('input')); ta.focus(); }
+  }, 30);
+
+  const am = addMessage(actualThreadId, 'assistant', '');
+  render();
+  const findEl = () => document.querySelector(`.chat-panel [data-msg-id="${am.id}"] .msg-content`);
+  const el0 = findEl();
+  if (el0) el0.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+  await new Promise(r => setTimeout(r, 200));
+
+  // Cancel any prior in-flight request
+  if (state.inflight) { try { state.inflight.abort(); } catch {} }
+  const ctrl = new AbortController();
+  state.inflight = ctrl;
+
+  const history = buildHistoryFor(actualThreadId).filter(m => m.content);
+
+  try {
+    const finalText = await streamFromProvider({
+      history,
+      signal: ctrl.signal,
+      onChunk: (acc) => {
+        am.content = acc;
+        const el = findEl();
+        if (el) {
+          el.innerHTML = renderContent(acc, []);
+          const body = el.closest('.messages');
+          if (body) body.scrollTop = body.scrollHeight;
+        }
+      },
+    });
+    am.content = finalText || am.content || '';
+    am.error = false;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      am.content = (am.content || '') + '\n\n*[stopped]*';
+    } else {
+      am.error = true;
+      const tip = state.demo
+        ? ''
+        : explainError(err);
+      am.content = `**${escapeHtml(err.message || 'Request failed')}**${tip ? '\n\n' + tip : ''}`;
+    }
+  } finally {
+    if (state.inflight === ctrl) state.inflight = null;
+    persist();
+    render();
+  }
+}
+
+function explainError(err) {
+  const m = (err && err.message || '') + '';
+  if (/Failed to fetch|NetworkError|TypeError/i.test(m)) {
+    if (state.provider === 'ollama') {
+      return `Could not reach Ollama at \`${state.baseUrl || 'http://localhost:11434'}\`. Is it running? Start it with \`ollama serve\`. If your browser blocks the request, set \`OLLAMA_ORIGINS=*\` (or this page's origin) before starting Ollama.`;
+    }
+    return `Network or CORS error. Check the provider, model name, and that your key is valid. Open DevTools → Network for details.`;
+  }
+  if (/401|403|invalid api key|unauthorized/i.test(m)) {
+    return `The API key looks wrong or doesn't have access. Open Settings to update it.`;
+  }
+  if (/404/.test(m)) {
+    return `Endpoint not found. Double-check the model name and (for Custom) the Base URL.`;
+  }
+  if (/429|quota|rate/i.test(m)) {
+    return `Rate-limited or out of quota with the provider.`;
+  }
+  return '';
+}
+
+/* ────────── SELECTION POPOVER ────────── */
+const popover = document.getElementById('selPop');
+const popoverArrow = document.getElementById('popArrow');
+let currentSelection = null;
+
+function getOffsetIn(container, node, offset) {
+  const range = document.createRange();
+  range.selectNodeContents(container);
+  try { range.setEnd(node, offset); } catch(e) { return 0; }
+  return range.toString().length;
+}
+
+document.addEventListener('mouseup', () => {
+  setTimeout(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) { hidePop(); return; }
+    const range = sel.getRangeAt(0);
+    const root = range.commonAncestorContainer.nodeType === 1
+      ? range.commonAncestorContainer.closest?.('.message.role-assistant .msg-content')
+      : range.commonAncestorContainer.parentElement?.closest('.message.role-assistant .msg-content');
+    if (!root) { hidePop(); return; }
+    const text = sel.toString().trim();
+    if (!text || text.length < 2) { hidePop(); return; }
+    let start = getOffsetIn(root, range.startContainer, range.startOffset);
+    let end = getOffsetIn(root, range.endContainer, range.endOffset);
+    if (start > end) [start, end] = [end, start];
+    const messageEl = root.closest('.message');
+    const panel = root.closest('.chat-panel') || root.closest('[data-thread-id]');
+    const threadId = panel?.querySelector('[data-thread-id]')?.dataset?.threadId
+                  || panel?.dataset?.threadId
+                  || root.closest('[data-thread-id]')?.dataset?.threadId;
+    currentSelection = { threadId, messageId: messageEl.dataset.msgId, text, start, end };
+    showPop(range);
+  }, 0);
+});
+
+function showPop(range) {
+  const rect = range.getBoundingClientRect();
+  popover.hidden = false;
+  const popH = 38;
+  const popW = popover.offsetWidth || 180;
+  let top = rect.top - popH - 8;
+  let arrowDir = 'down';
+  if (top < 60) { top = rect.bottom + 10; arrowDir = 'up'; }
+  let left = rect.left + (rect.width / 2) - (popW / 2);
+  left = Math.max(8, Math.min(window.innerWidth - popW - 8, left));
+  popover.style.top = top + 'px';
+  popover.style.left = left + 'px';
+  popoverArrow.className = `sel-pop-arrow ${arrowDir}`;
+  const arrLeft = (rect.left + rect.width / 2) - left - 4;
+  popoverArrow.style.left = Math.max(8, Math.min(popW - 16, arrLeft)) + 'px';
+}
+function hidePop() { popover.hidden = true; currentSelection = null; }
+
+document.addEventListener('mousedown', e => {
+  if (popover.contains(e.target)) return;
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed) hidePop();
+});
+
+/* ────────── THREAD (BRANCH) ────────── */
+document.getElementById('threadBtn').addEventListener('click', () => {
+  if (!currentSelection) return;
+  const sel = currentSelection;
+  hidePop();
+  window.getSelection()?.removeAllRanges();
+
+  const parent = state.threads.get(sel.threadId);
+  const parentMsg = parent?.messages.find(m => m.id === sel.messageId);
+  if (!parentMsg) return;
+
+  const child = createThread({
+    parentId: sel.threadId,
+    parentMessageId: sel.messageId,
+    quotedText: sel.text,
+    title: autoTitle(sel.text),
+  });
+
+  // Branch marker on parent message
+  const overlaps = parentMsg.branches.some(b => !(sel.end <= b.start || sel.start >= b.end));
+  if (!overlaps) {
+    parentMsg.branches.push({
+      threadId: child.id, threadNum: child.num,
+      snippet: sel.text, start: sel.start, end: sel.end,
+    });
+  }
+
+  // Open this thread in stack (replace stack — single child for now; can support nested)
+  // If selection came from a child thread, append; otherwise reset to single child
+  if (state.openThreadIds.includes(sel.threadId)) {
+    // Selection from a thread — append nested
+    const idx = state.openThreadIds.indexOf(sel.threadId);
+    state.openThreadIds = state.openThreadIds.slice(0, idx + 1).concat([child.id]);
+  } else {
+    state.openThreadIds = [child.id];
+  }
+  persist();
+  render();
+});
+
+function closeThread(threadId) {
+  const idx = state.openThreadIds.indexOf(threadId);
+  if (idx === -1) return;
+  state.openThreadIds = state.openThreadIds.slice(0, idx);
+  render();
+}
+
+/* ────────── SIDE QUEST ────────── */
+const questModal = document.getElementById('questModal');
+const questQuoteEl = document.getElementById('questQuote');
+const questNoteEl = document.getElementById('questNote');
+
+document.getElementById('questBtn').addEventListener('click', () => {
+  if (!currentSelection) return;
+  const sel = currentSelection;
+  questQuoteEl.textContent = sel.text;
+  questNoteEl.value = '';
+  questModal.hidden = false;
+  setTimeout(() => questNoteEl.focus(), 60);
+  questModal.dataset.threadId = sel.threadId;
+  questModal.dataset.messageId = sel.messageId;
+  questModal.dataset.text = sel.text;
+  hidePop();
+  window.getSelection()?.removeAllRanges();
+});
+document.getElementById('questCancel').addEventListener('click', () => questModal.hidden = true);
+document.getElementById('questSave').addEventListener('click', () => {
+  state.sideQuests.unshift({
+    id: uid('q'),
+    snippet: questModal.dataset.text,
+    note: questNoteEl.value.trim(),
+    threadId: questModal.dataset.threadId,
+    messageId: questModal.dataset.messageId,
+    createdAt: Date.now(),
+  });
+  questModal.hidden = true;
+  showToast('Saved to Side Quests');
+  persist();
+  render();
+});
+questModal.addEventListener('click', e => { if (e.target === questModal) questModal.hidden = true; });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { questModal.hidden = true; hidePop(); }
+});
+
+/* ────────── NOTEBOOK ────────── */
+function renderNotebook() {
+  const main = document.querySelector('.main');
+  document.querySelector('.workspace').style.display = 'none';
+  document.querySelector('.topbar').style.display = '';
+  document.getElementById('topbarTitle').querySelector('span').textContent = 'Side Quests';
+
+  let nb = main.querySelector('.notebook');
+  if (!nb) {
+    nb = document.createElement('div');
+    nb.className = 'notebook';
+    main.appendChild(nb);
+  }
+  nb.style.display = '';
+
+  const items = state.sideQuests;
+  if (items.length === 0) {
+    nb.innerHTML = `
+      <div class="nb-inner">
+        <div class="nb-header">
+          <div class="nb-eyebrow">Notebook</div>
+          <h1 class="nb-title">Side Quests</h1>
+        </div>
+        <div class="nb-empty">
+          <strong>Nothing saved yet</strong>
+          Highlight any phrase in an assistant reply and choose <em>Side Quest</em> to keep a snippet here, with a note.
+        </div>
+      </div>
+    `;
+  } else {
+    nb.innerHTML = `
+      <div class="nb-inner">
+        <div class="nb-header">
+          <div class="nb-eyebrow">Notebook · ${items.length} ${items.length === 1 ? 'entry' : 'entries'}</div>
+          <h1 class="nb-title">Side Quests</h1>
+          <div class="nb-sub">Bits worth keeping. Click any quote to jump back to its source.</div>
+        </div>
+        <div class="nb-list">
+          ${items.map(q => {
+            const t = state.threads.get(q.threadId);
+            const date = new Date(q.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            return `
+              <div class="quest-card">
+                <div class="quest-quote">${escapeHtml(q.snippet)}</div>
+                <div class="quest-note ${q.note ? '' : 'empty'}">${q.note ? escapeHtml(q.note) : 'No note added.'}</div>
+                <div class="quest-meta">
+                  <span>${date}</span>
+                  <span>·</span>
+                  <span>from "${escapeHtml(t?.title || 'a chat')}"</span>
+                  <span>·</span>
+                  <a data-thread="${q.threadId}">↗ jump to source</a>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+    nb.querySelectorAll('a[data-thread]').forEach(a => {
+      a.addEventListener('click', () => {
+        state.view = 'chat';
+        const tid = a.dataset.thread;
+        const t = state.threads.get(tid);
+        if (t?.isMain) {
+          state.activeMainId = tid;
+          state.openThreadIds = [];
+        } else if (t) {
+          // walk up to root main
+          let cur = t;
+          while (cur.parentId) cur = state.threads.get(cur.parentId);
+          state.activeMainId = cur.id;
+          state.openThreadIds = [tid];
+        }
+        render();
+      });
+    });
+  }
+}
+
+document.getElementById('sideQuestBtn').addEventListener('click', () => {
+  state.view = 'notebook';
+  render();
+});
+
+/* ────────── NEW CHAT ────────── */
+document.getElementById('newChatBtn').addEventListener('click', () => {
+  state.view = 'chat';
+  state.activeMainId = null;
+  state.openThreadIds = [];
+  render();
+});
+
+/* ────────── PERSISTENCE ──────────
+   Everything stays in localStorage on this origin only.
+   Toggle "persist" off in Settings → Connection to skip writing the key.
+   ─────────────────────────────────────── */
+function serialize() {
+  return {
+    threads: Array.from(state.threads.values()),
+    mainOrder: state.mainOrder,
+    sideQuests: state.sideQuests,
+    activeMainId: state.activeMainId,
+    openThreadIds: state.openThreadIds,
+    expandedRoots: state.expandedRoots ? Array.from(state.expandedRoots) : [],
+    settings: {
+      provider: state.provider,
+      model: state.model,
+      apiKey: state.persist ? state.apiKey : '',
+      baseUrl: state.baseUrl,
+      systemPrompt: state.systemPrompt,
+      persist: state.persist,
+    },
+  };
+}
+function persist() {
+  try {
+    const data = serialize();
+    if (!state.persist) {
+      // Persist chats but not the key
+      data.settings.apiKey = '';
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {}
+}
+function loadPersisted() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.threads)) {
+      state.threads = new Map(data.threads.map(t => [t.id, t]));
+    }
+    state.mainOrder = data.mainOrder || [];
+    state.sideQuests = data.sideQuests || [];
+    state.activeMainId = data.activeMainId || null;
+    state.openThreadIds = data.openThreadIds || [];
+    state.expandedRoots = new Set(data.expandedRoots || []);
+    const s = data.settings || {};
+    if (s.provider) state.provider = s.provider;
+    if (s.model) state.model = s.model;
+    if (typeof s.apiKey === 'string') state.apiKey = s.apiKey;
+    if (typeof s.baseUrl === 'string') state.baseUrl = s.baseUrl;
+    if (typeof s.systemPrompt === 'string') state.systemPrompt = s.systemPrompt;
+    if (typeof s.persist === 'boolean') state.persist = s.persist;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isReadyToChat() {
+  if (state.demo) return true;
+  const p = PROVIDERS[state.provider];
+  if (!p) return false;
+  if (p.needsKey && !state.apiKey) return false;
+  if (!state.model) return false;
+  return true;
+}
+
+function applyConnectionStatus() {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  const name = document.getElementById('providerName');
+  const avatar = document.getElementById('userAvatar');
+  const ready = isReadyToChat();
+  state.connected = ready;
+  if (ready) {
+    dot.classList.remove('disconnected');
+    text.textContent = state.demo ? 'Demo (mock)' : (PROVIDERS[state.provider]?.label || state.provider);
+    name.textContent = state.demo ? 'Demo mode' : (state.model || PROVIDERS[state.provider]?.label || 'Connected');
+    avatar.textContent = (PROVIDERS[state.provider]?.label || 'C')[0];
+  } else {
+    dot.classList.add('disconnected');
+    text.textContent = 'Click to connect';
+    name.textContent = 'Not connected';
+    avatar.textContent = '·';
+  }
+}
+
+/* ────────── GATE ────────── */
+const gate = document.getElementById('gate');
+const gateForm = document.getElementById('gateForm');
+const gateSubmit = document.getElementById('gateSubmit');
+const gateProvider = document.getElementById('provider');
+const gateModel = document.getElementById('gateModel');
+const gateBaseUrl = document.getElementById('gateBaseUrl');
+const gateBaseUrlRow = document.getElementById('gateBaseUrlRow');
+const gateKeyRow = document.getElementById('gateKeyRow');
+const apiKeyInput = document.getElementById('apiKey');
+const gatePersist = document.getElementById('gatePersist');
+
+function syncGateForProvider() {
+  const cfg = PROVIDERS[gateProvider.value];
+  gateModel.placeholder = cfg.defaultModel || 'model-name';
+  gateModel.value = cfg.defaultModel || '';
+  gateKeyRow.hidden = !cfg.needsKey;
+  gateBaseUrlRow.hidden = !cfg.needsBaseUrl;
+  if (cfg.needsBaseUrl) gateBaseUrl.value = cfg.defaultBaseUrl || '';
+  updateGateSubmit();
+}
+function updateGateSubmit() {
+  const cfg = PROVIDERS[gateProvider.value];
+  const keyOk = !cfg.needsKey || apiKeyInput.value.trim();
+  const modelOk = gateModel.value.trim();
+  const urlOk = !cfg.needsBaseUrl || gateBaseUrl.value.trim();
+  gateSubmit.disabled = !(keyOk && modelOk && urlOk);
+}
+gateProvider.addEventListener('change', syncGateForProvider);
+gateModel.addEventListener('input', updateGateSubmit);
+gateBaseUrl.addEventListener('input', updateGateSubmit);
+apiKeyInput.addEventListener('input', updateGateSubmit);
+syncGateForProvider();
+
+gateForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const cfg = PROVIDERS[gateProvider.value];
+  if (cfg.needsKey && !apiKeyInput.value.trim()) return;
+  state.provider = gateProvider.value;
+  state.model = gateModel.value.trim() || cfg.defaultModel;
+  state.apiKey = cfg.needsKey ? apiKeyInput.value.trim() : '';
+  state.baseUrl = cfg.needsBaseUrl ? gateBaseUrl.value.trim() : '';
+  state.persist = !!gatePersist.checked;
+  state.demo = false;
+  gate.hidden = true;
+  applyConnectionStatus();
+  showToast(state.persist ? 'Connected — saved to this device' : 'Connected for this tab only');
+  persist();
+  render();
+});
+document.getElementById('gateSkip').addEventListener('click', () => {
+  state.demo = true;
+  state.provider = gateProvider.value;
+  state.model = gateModel.value.trim() || PROVIDERS[state.provider].defaultModel;
+  state.apiKey = '';
+  state.baseUrl = '';
+  state.persist = !!gatePersist.checked;
+  gate.hidden = true;
+  applyConnectionStatus();
+  showToast('Demo mode — replies are mocked locally');
+  render();
+});
+
+/* ────────── SETTINGS MODAL ────────── */
+const settingsModal = document.getElementById('settingsModal');
+const setProvider = document.getElementById('setProvider');
+const setModel = document.getElementById('setModel');
+const setModelHelp = document.getElementById('setModelHelp');
+const setBaseUrl = document.getElementById('setBaseUrl');
+const setBaseUrlRow = document.getElementById('setBaseUrlRow');
+const setKey = document.getElementById('setKey');
+const setKeyRow = document.getElementById('setKeyRow');
+const setSystem = document.getElementById('setSystem');
+const setPersist = document.getElementById('setPersist');
+
+function openSettings() {
+  setProvider.value = state.provider;
+  syncSettingsForProvider();
+  setModel.value = state.model || '';
+  setBaseUrl.value = state.baseUrl || PROVIDERS[state.provider].defaultBaseUrl || '';
+  setKey.value = '';
+  setKey.placeholder = state.apiKey ? '•••• key saved on this device' : 'sk-...';
+  setSystem.value = state.systemPrompt || '';
+  setPersist.checked = !!state.persist;
+  // default to "connection" tab
+  settingsModal.querySelectorAll('.modal-tab').forEach(b => b.classList.toggle('is-active', b.dataset.tab === 'connection'));
+  settingsModal.querySelectorAll('.settings-tab').forEach(t => t.hidden = t.dataset.tab !== 'connection');
+  refreshDataStats();
+  settingsModal.hidden = false;
+}
+function syncSettingsForProvider() {
+  const cfg = PROVIDERS[setProvider.value];
+  setKeyRow.hidden = !cfg.needsKey;
+  setBaseUrlRow.hidden = !cfg.needsBaseUrl;
+  setModel.placeholder = cfg.defaultModel || 'model-name';
+  if (cfg.suggested?.length) {
+    setModelHelp.textContent = `Suggested: ${cfg.suggested.join(', ')}`;
+  } else if (setProvider.value === 'custom') {
+    setModelHelp.textContent = `Anything your endpoint accepts. Base URL should end before /chat/completions.`;
+  } else {
+    setModelHelp.textContent = '';
+  }
+}
+function refreshDataStats() {
+  const el = document.getElementById('dataStats');
+  if (!el) return;
+  const chats = state.mainOrder.length;
+  const threads = state.threads.size;
+  const quests = state.sideQuests.length;
+  el.innerHTML = `<div>Chats: <strong>${chats}</strong> · Threads (incl. branches): <strong>${threads}</strong> · Side Quests: <strong>${quests}</strong></div>`;
+}
+setProvider.addEventListener('change', syncSettingsForProvider);
+settingsModal.querySelectorAll('.modal-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    settingsModal.querySelectorAll('.modal-tab').forEach(b => b.classList.toggle('is-active', b === btn));
+    settingsModal.querySelectorAll('.settings-tab').forEach(t => t.hidden = t.dataset.tab !== btn.dataset.tab);
+  });
+});
+document.getElementById('settingsCancel').addEventListener('click', () => settingsModal.hidden = true);
+document.getElementById('settingsSave').addEventListener('click', () => {
+  const cfg = PROVIDERS[setProvider.value];
+  state.provider = setProvider.value;
+  state.model = setModel.value.trim() || cfg.defaultModel;
+  state.baseUrl = cfg.needsBaseUrl ? setBaseUrl.value.trim() : '';
+  if (setKey.value.trim()) state.apiKey = setKey.value.trim();
+  if (!cfg.needsKey) state.apiKey = '';
+  state.systemPrompt = setSystem.value;
+  state.persist = !!setPersist.checked;
+  state.demo = false;
+  settingsModal.hidden = true;
+  applyConnectionStatus();
+  persist();
+  showToast('Settings saved');
+  render();
+});
+settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.hidden = true; });
+
+document.getElementById('topbarSettingsBtn').addEventListener('click', openSettings);
+document.getElementById('settingsBtn').addEventListener('click', openSettings);
+
+document.getElementById('clearChatsBtn').addEventListener('click', () => {
+  if (!confirm('Delete all chats and Side Quests on this device? This cannot be undone.')) return;
+  state.threads = new Map();
+  state.mainOrder = [];
+  state.sideQuests = [];
+  state.activeMainId = null;
+  state.openThreadIds = [];
+  state.expandedRoots = new Set();
+  persist();
+  refreshDataStats();
+  render();
+  showToast('Chats cleared');
+});
+document.getElementById('clearAllBtn').addEventListener('click', () => {
+  if (!confirm('Forget everything: chats, quests, API key, settings. Continue?')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  location.reload();
+});
+
+/* ────────── MESSAGE ACTIONS (copy / regenerate) ────────── */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.msg-action[data-act]');
+  if (!btn) return;
+  const msgId = btn.dataset.msg;
+  const act = btn.dataset.act;
+  // Find which thread holds this message
+  let foundThreadId = null, foundIdx = -1;
+  for (const t of state.threads.values()) {
+    const idx = t.messages.findIndex(m => m.id === msgId);
+    if (idx !== -1) { foundThreadId = t.id; foundIdx = idx; break; }
+  }
+  if (!foundThreadId) return;
+  const thread = state.threads.get(foundThreadId);
+  const msg = thread.messages[foundIdx];
+  if (act === 'copy') {
+    navigator.clipboard?.writeText(msg.content || '').then(
+      () => showToast('Copied'),
+      () => showToast('Copy failed')
+    );
+    return;
+  }
+  if (act === 'regen') {
+    let userIdx = foundIdx - 1;
+    while (userIdx >= 0 && thread.messages[userIdx].role !== 'user') userIdx--;
+    if (userIdx < 0) { showToast('Nothing to regenerate from'); return; }
+    const userText = thread.messages[userIdx].content;
+    // Drop the user message + everything after; handleSend re-appends the user message.
+    thread.messages = thread.messages.slice(0, userIdx);
+    persist();
+    handleSend(foundThreadId, userText);
+  }
+});
+
+/* ────────── KEYBOARD ────────── */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    settingsModal.hidden = true;
+  }
+  // Cmd/Ctrl-K opens settings
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === ',') {
+    e.preventDefault();
+    openSettings();
+  }
+});
+
+/* ────────── INIT ────────── */
+const hadPersisted = loadPersisted();
+applyConnectionStatus();
+if (hadPersisted && isReadyToChat()) {
+  gate.hidden = true;
+} else if (hadPersisted && state.provider) {
+  // Pre-fill the gate with whatever we know
+  gateProvider.value = state.provider;
+  syncGateForProvider();
+  if (state.model) gateModel.value = state.model;
+  if (state.baseUrl) gateBaseUrl.value = state.baseUrl;
+  gatePersist.checked = state.persist;
+  updateGateSubmit();
+}
+render();
+</script>
+</body>
+</html>

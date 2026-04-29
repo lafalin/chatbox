@@ -960,7 +960,14 @@ input, textarea { font-family: inherit; }
   font-weight: 400;
   user-select: none;
 }
-.gate-check input { margin-top: 2px; accent-color: var(--ink); }
+.gate-check input[type="checkbox"] {
+  width: auto;
+  flex-shrink: 0;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--ink);
+}
 .gate-error {
   background: #FEF2F2;
   border: 1px solid #FECACA;

@@ -2,15 +2,17 @@
 
 A chat UI for any LLM, in one HTML file. Bring your own key — or run a local model.
 
+**[→ Try it live](https://lafalin.github.io/chatbox/)**
+
 - **No backend.** The whole app is one static page. Nothing you type leaves your browser except the request you make to the model provider you chose.
 - **No telemetry, no analytics, no third-party scripts** beyond Google Fonts (which loads the typeface — you can self-host if you'd rather not).
 - **Your key stays on your device.** It's read directly from the form into `localStorage` (or kept in memory only for the tab if you uncheck "Save on this device"). The author of this repo cannot see your key or your conversations.
 
 ## Try it
 
-Open `index.html` in any modern browser. That's it.
+Just open the [hosted page](https://lafalin.github.io/chatbox/) — or download `index.html` and open it locally. That's it. No build step.
 
-To deploy: it's a single file, so any static host works (GitHub Pages, Netlify, Cloudflare Pages, Vercel, an S3 bucket, your laptop). No build step.
+> **Note on Ollama:** browsers block HTTPS pages from calling `http://localhost`. If you want to use Ollama with the hosted page, run it locally instead: clone the repo and `python3 -m http.server`, or just open `index.html` from disk.
 
 ## Supported providers
 

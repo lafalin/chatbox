@@ -674,11 +674,14 @@ input, textarea { font-family: inherit; }
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  padding: 0 24px 80px;
+  padding: 40px 24px 80px;
   gap: 32px;
+  overflow-y: auto;
+  min-height: 0;
 }
+.landing > :first-child { margin-top: auto; }
+.landing > :last-child { margin-bottom: auto; }
 .landing h1 {
   font-size: 30px;
   font-weight: 600;
@@ -738,11 +741,13 @@ input, textarea { font-family: inherit; }
   position: fixed;
   inset: 0;
   background: rgba(13, 13, 13, 0.4);
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
   z-index: 200;
   backdrop-filter: blur(4px);
   animation: fadeIn 160ms ease;
+  padding: 24px;
+  overflow-y: auto;
 }
 .modal-overlay[hidden] { display: none; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -755,6 +760,7 @@ input, textarea { font-family: inherit; }
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--line);
   animation: modalIn 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  margin: auto;
 }
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.97) translateY(8px); }
@@ -836,10 +842,12 @@ input, textarea { font-family: inherit; }
   inset: 0;
   background: var(--bg);
   z-index: 300;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
   padding: 24px;
+  overflow-y: auto;
 }
+.gate-card { margin: auto; }
 .gate[hidden] { display: none; }
 .gate-card {
   width: 100%;

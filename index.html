@@ -1798,19 +1798,105 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function renderContent(content, branches) {
-  const sorted = [...(branches || [])].sort((a,b) => a.start - b.start);
-  let html = '', cursor = 0;
-  for (const b of sorted) {
-    if (b.start > cursor) html += escapeHtml(content.slice(cursor, b.start));
-    html += `<span class="branched" data-thread-id="${b.threadId}" data-thread-num="${b.threadNum}">${escapeHtml(content.slice(b.start, b.end))}<span class="badge">${b.threadNum}</span></span>`;
-    cursor = b.end;
-  }
-  if (cursor < content.length) html += escapeHtml(content.slice(cursor));
-  // markdown-lite: **bold**, paragraphs, numbered lists
-  return html.split(/\n\n+/).map(p => {
-    p = p.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+  // 1) Render markdown first — this is the source of truth for what the user sees.
+  const html = (content || '').split(/\n\n+/).map(p => {
+    let escaped = escapeHtml(p);
+    escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return `<p>${escaped.replace(/\n/g, '<br>')}</p>`;
   }).join('');
+
+  if (!branches?.length) return html;
+
+  // 2) Layer branches on top via DOM manipulation, anchored on the snippet text
+  //    (and an occurrence index for disambiguation). This is robust against
+  //    markdown stripping and prior branches.
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  // Apply in stable order; later branches stack on top of earlier ones if nested.
+  for (const b of branches) {
+    if (!b || !b.snippet) continue;
+    applyBranchToDom(tmp, b);
+  }
+  return tmp.innerHTML;
+}
+
+function applyBranchToDom(root, branch) {
+  const snippet = branch.snippet;
+  const occurrence = Number.isInteger(branch.occurrence) ? branch.occurrence : 0;
+  const threadId = branch.threadId;
+  const threadNum = branch.threadNum;
+
+  // Collect text nodes outside any existing .badge (badges are decorative,
+  // not part of the rendered "real" text).
+  const nodes = [];
+  let plain = '';
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      return n.parentElement && n.parentElement.closest('.badge')
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  while (walker.nextNode()) {
+    const n = walker.currentNode;
+    nodes.push({ node: n, start: plain.length, end: plain.length + n.nodeValue.length });
+    plain += n.nodeValue;
+  }
+
+  // Find the (occurrence)-th occurrence of `snippet` in the plain rendered text.
+  let foundAt = -1;
+  let from = -1;
+  for (let i = 0; i <= occurrence; i++) {
+    foundAt = plain.indexOf(snippet, from + 1);
+    if (foundAt === -1) break;
+    from = foundAt;
+  }
+  if (foundAt === -1) {
+    // Fallback: try first occurrence (in case occurrence drifted, e.g. content edited).
+    foundAt = plain.indexOf(snippet);
+    if (foundAt === -1) return;
+  }
+  const startPos = foundAt;
+  const endPos = foundAt + snippet.length;
+
+  let startNode = null, startOff = 0;
+  let endNode = null, endOff = 0;
+  for (const x of nodes) {
+    if (!startNode && startPos >= x.start && startPos < x.end) {
+      startNode = x.node;
+      startOff = startPos - x.start;
+    }
+    if (!endNode && endPos > x.start && endPos <= x.end) {
+      endNode = x.node;
+      endOff = endPos - x.start;
+      break;
+    }
+  }
+  if (!startNode || !endNode) return;
+
+  const range = document.createRange();
+  range.setStart(startNode, startOff);
+  range.setEnd(endNode, endOff);
+
+  const span = document.createElement('span');
+  span.className = 'branched';
+  span.setAttribute('data-thread-id', threadId);
+  span.setAttribute('data-thread-num', threadNum);
+
+  try {
+    range.surroundContents(span);
+  } catch {
+    // Range straddles an element boundary (e.g. across <strong>).
+    // extractContents + insertNode handles that by splitting nodes as needed.
+    const frag = range.extractContents();
+    span.appendChild(frag);
+    range.insertNode(span);
+  }
+
+  const badge = document.createElement('span');
+  badge.className = 'badge';
+  badge.textContent = threadNum;
+  span.appendChild(badge);
 }
 
 function showToast(msg) {
@@ -2303,11 +2389,39 @@ const popover = document.getElementById('selPop');
 const popoverArrow = document.getElementById('popArrow');
 let currentSelection = null;
 
-function getOffsetIn(container, node, offset) {
-  const range = document.createRange();
-  range.selectNodeContents(container);
-  try { range.setEnd(node, offset); } catch(e) { return 0; }
-  return range.toString().length;
+// Plain text content of a node, skipping anything inside .badge (those are
+// decorative numbers we add when a branch is rendered).
+function plainTextOf(root) {
+  let out = '';
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      return n.parentElement && n.parentElement.closest('.badge')
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  while (walker.nextNode()) out += walker.currentNode.nodeValue;
+  return out;
+}
+
+// How many chars of plain text precede `targetNode`/`targetOffset` inside `root`,
+// counting only non-.badge text.
+function plainOffsetTo(root, targetNode, targetOffset) {
+  let pos = 0;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(n) {
+      return n.parentElement && n.parentElement.closest('.badge')
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  while (walker.nextNode()) {
+    const n = walker.currentNode;
+    if (n === targetNode) return pos + Math.min(targetOffset, n.nodeValue.length);
+    pos += n.nodeValue.length;
+  }
+  // If targetNode is an element node, return the running total — best effort.
+  return pos;
 }
 
 document.addEventListener('mouseup', () => {
@@ -2321,15 +2435,22 @@ document.addEventListener('mouseup', () => {
     if (!root) { hidePop(); return; }
     const text = sel.toString().trim();
     if (!text || text.length < 2) { hidePop(); return; }
-    let start = getOffsetIn(root, range.startContainer, range.startOffset);
-    let end = getOffsetIn(root, range.endContainer, range.endOffset);
-    if (start > end) [start, end] = [end, start];
     const messageEl = root.closest('.message');
     const panel = root.closest('.chat-panel') || root.closest('[data-thread-id]');
     const threadId = panel?.querySelector('[data-thread-id]')?.dataset?.threadId
                   || panel?.dataset?.threadId
                   || root.closest('[data-thread-id]')?.dataset?.threadId;
-    currentSelection = { threadId, messageId: messageEl.dataset.msgId, text, start, end };
+
+    // Compute "occurrence index": the count of `text` matches that begin
+    // strictly before this selection start within the rendered (non-badge) text.
+    const fullPlain = plainTextOf(root);
+    const startPlain = plainOffsetTo(root, range.startContainer, range.startOffset);
+    const before = fullPlain.slice(0, startPlain);
+    let occurrence = 0;
+    let p = -1;
+    while ((p = before.indexOf(text, p + 1)) !== -1) occurrence++;
+
+    currentSelection = { threadId, messageId: messageEl.dataset.msgId, text, occurrence };
     showPop(range);
   }, 0);
 });
@@ -2376,12 +2497,15 @@ document.getElementById('threadBtn').addEventListener('click', () => {
     title: autoTitle(sel.text),
   });
 
-  // Branch marker on parent message
-  const overlaps = parentMsg.branches.some(b => !(sel.end <= b.start || sel.start >= b.end));
-  if (!overlaps) {
+  // Branch marker on parent message — keyed by snippet + occurrence so the
+  // highlight survives markdown rendering and prior branches.
+  const dup = parentMsg.branches.some(b => b.snippet === sel.text && (b.occurrence || 0) === sel.occurrence);
+  if (!dup) {
     parentMsg.branches.push({
-      threadId: child.id, threadNum: child.num,
-      snippet: sel.text, start: sel.start, end: sel.end,
+      threadId: child.id,
+      threadNum: child.num,
+      snippet: sel.text,
+      occurrence: sel.occurrence,
     });
   }
 

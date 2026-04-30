@@ -1428,6 +1428,12 @@ input, textarea { font-family: inherit; }
       </div>
       <div class="settings-row">
         <label class="gate-check">
+          <input type="checkbox" id="setConcise">
+          <span>Keep replies short. Adds a brevity instruction to the system prompt — use when the model rambles.</span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <label class="gate-check">
           <input type="checkbox" id="setPersist">
           <span>Save key on this device. Uncheck to drop it when you close this tab.</span>
         </label>
@@ -1558,6 +1564,7 @@ const state = {
   apiKey: '',
   baseUrl: '',
   systemPrompt: '',
+  concise: false,
   persist: true,
   // ephemeral
   inflight: null, // AbortController for current request
@@ -1813,7 +1820,11 @@ async function streamFromProvider({ history, signal, onChunk }) {
   const model = state.model || PROVIDERS[provider]?.defaultModel || '';
   const apiKey = state.apiKey;
   const baseUrl = state.baseUrl;
-  const system = state.systemPrompt?.trim() || '';
+  const userSystem = state.systemPrompt?.trim() || '';
+  const conciseAddon = 'Be concise. Default to short, direct answers. Skip preambles, filler phrases, and over-explaining unless the user explicitly asks for depth.';
+  const system = state.concise
+    ? (userSystem ? `${conciseAddon}\n\n${userSystem}` : conciseAddon)
+    : userSystem;
 
   if (state.demo) return callMock({ signal, onChunk });
 
@@ -2124,7 +2135,11 @@ function renderSidebar() {
 
   // model pill
   const pill = document.getElementById('modelPill');
-  if (pill) pill.textContent = state.demo ? 'demo' : (state.model || 'no model');
+  if (pill) {
+    let label = state.demo ? 'demo' : (state.model || 'no model');
+    if (state.concise) label += ' · concise';
+    pill.textContent = label;
+  }
 
   applyConnectionStatus();
 }
@@ -2709,6 +2724,7 @@ function serialize() {
       apiKey: state.persist ? state.apiKey : '',
       baseUrl: state.baseUrl,
       systemPrompt: state.systemPrompt,
+      concise: state.concise,
       persist: state.persist,
     },
   };
@@ -2742,6 +2758,7 @@ function loadPersisted() {
     if (typeof s.apiKey === 'string') state.apiKey = s.apiKey;
     if (typeof s.baseUrl === 'string') state.baseUrl = s.baseUrl;
     if (typeof s.systemPrompt === 'string') state.systemPrompt = s.systemPrompt;
+    if (typeof s.concise === 'boolean') state.concise = s.concise;
     if (typeof s.persist === 'boolean') state.persist = s.persist;
     return true;
   } catch {
@@ -3009,6 +3026,7 @@ const setBaseUrlRow = document.getElementById('setBaseUrlRow');
 const setKey = document.getElementById('setKey');
 const setKeyRow = document.getElementById('setKeyRow');
 const setSystem = document.getElementById('setSystem');
+const setConcise = document.getElementById('setConcise');
 const setPersist = document.getElementById('setPersist');
 
 function openSettings() {
@@ -3017,6 +3035,7 @@ function openSettings() {
   setKey.value = '';
   setKey.placeholder = state.apiKey ? '•••• key saved on this device' : 'sk-...';
   setSystem.value = state.systemPrompt || '';
+  setConcise.checked = !!state.concise;
   setPersist.checked = !!state.persist;
   syncSettingsForProvider();
   triggerSettingsModelRefresh();
@@ -3080,6 +3099,7 @@ document.getElementById('settingsSave').addEventListener('click', () => {
   if (setKey.value.trim()) state.apiKey = setKey.value.trim();
   if (!cfg.needsKey) state.apiKey = '';
   state.systemPrompt = setSystem.value;
+  state.concise = !!setConcise.checked;
   state.persist = !!setPersist.checked;
   state.demo = false;
   settingsModal.hidden = true;
